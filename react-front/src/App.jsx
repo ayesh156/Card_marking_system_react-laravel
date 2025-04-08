@@ -10,6 +10,10 @@ import Classes from "./views/Classes.jsx";
 import Login from "./views/Login.jsx";
 import Dashboard from "./views/Dashboard.jsx";
 import Cookies from "js-cookie";
+import Message from "./views/Message.jsx";
+import Settings from "./views/Settings.jsx";
+import History from "./views/History.jsx";
+
 
 function App() {
     const [theme, colorMode] = useMode();
@@ -87,6 +91,9 @@ function App() {
                                             <Route key={`${path}/student`} path={`/${path}/student`} element={<StudentPage />} />
                                         ))}
 
+                                        <Route path="/message" element={<Message />} />
+                                        <Route path="/settings" element={<Settings />} />
+                                        <Route path="/history" element={<History />} />
                                         <Route path="*" element={<Dashboard />} />
                                     </Routes>
                                 </main>
