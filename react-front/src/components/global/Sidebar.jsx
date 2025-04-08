@@ -1,8 +1,8 @@
-import {useState, useEffect, useCallback} from "react";
-import {Menu, MenuItem, ProSidebar} from "react-pro-sidebar";
-import {Box, IconButton, Typography, useTheme} from "@mui/material";
-import {Link, useNavigate} from "react-router-dom";
-import {tokens} from "../../theme";
+import { useState, useEffect, useRef } from "react";
+import { Menu, MenuItem, ProSidebar } from "react-pro-sidebar";
+import { Box, IconButton, Typography, useTheme } from "@mui/material";
+import { Link, useNavigate } from "react-router-dom";
+import { tokens } from "../../theme";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
@@ -42,6 +42,8 @@ const Sidebar = () => {
     const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 767);
     const [selected, setSelected] = useState("Dashboard");
     const [selectedClass, setSelectedClass] = useState(null);
+    const hasRefreshed = useRef(false); // Ref to track if the page has already refreshed
+
 
     useEffect(() => {
         const storedClass = Cookies.get("selectedClass"); // Get the selected class from cookies
@@ -59,10 +61,9 @@ const Sidebar = () => {
             setSelected(grade === "P" ? "Primary" : `Grade${grade}`);
         }
 
-        console.log("Selected Class:", Cookies.get("classSelected")); // Log the selected class
     }, [location]);
 
-    
+
 
     // Function to handle window resize
     useEffect(() => {
@@ -117,6 +118,15 @@ const Sidebar = () => {
 
     const gradeItems = getGradeItems();
 
+     // Refresh the page only once when gradeItems are set
+     useEffect(() => {
+        if (gradeItems.length > 0 && !hasRefreshed.current) {
+            hasRefreshed.current = true; // Mark as refreshed
+            window.location.reload(); // Reload the page
+        }
+    }, []);
+
+
     return (
         <Box
             sx={{
@@ -143,7 +153,7 @@ const Sidebar = () => {
                     {/* LOGO AND MENU ICON */}
                     <MenuItem
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        icon={isCollapsed ? <MenuOutlinedIcon/> : undefined}
+                        icon={isCollapsed ? <MenuOutlinedIcon /> : undefined}
                         style={{
                             color: colors.grey[100],
                         }}
@@ -155,7 +165,7 @@ const Sidebar = () => {
                                 alignItems="center"
                             >
                                 <IconButton onClick={() => setIsCollapsed(!isCollapsed)}>
-                                    <MenuOutlinedIcon/>
+                                    <MenuOutlinedIcon />
                                 </IconButton>
                             </Box>
                         )}
@@ -168,7 +178,7 @@ const Sidebar = () => {
                                     width="100px"
                                     height="100px"
                                     src={"../../assets/logo.jpg"}
-                                    style={{cursor: "pointer", borderRadius: "50%"}}
+                                    style={{ cursor: "pointer", borderRadius: "50%" }}
                                 />
                             </Box>
                             <Box textAlign="center">
@@ -176,7 +186,7 @@ const Sidebar = () => {
                                     variant="h2"
                                     color={colors.grey[100]}
                                     fontWeight="bold"
-                                    sx={{m: "10px 0 0 0"}}
+                                    sx={{ m: "10px 0 0 0" }}
                                 >
                                     ZYNERGY
                                     {/*{initialValues.first_name === "" ? "Name" : initialValues.first_name}*/}
@@ -197,13 +207,13 @@ const Sidebar = () => {
                         <Item
                             title="Logout"
                             to="/"
-                            icon={<ExitToAppIcon/>}
+                            icon={<ExitToAppIcon />}
                             onClick={handleLogout}
                         />
                         <Item
                             title="Classes"
                             to="/"
-                            icon={<ListIcon/>}
+                            icon={<ListIcon />}
                             onClick={handleClasses}
                         />
                     </Box>
@@ -212,7 +222,7 @@ const Sidebar = () => {
                         <Item
                             title="Dashboard"
                             to="/"
-                            icon={<HomeOutlinedIcon/>}
+                            icon={<HomeOutlinedIcon />}
                             selected={selected}
                             setSelected={setSelected}
                         />
@@ -220,7 +230,7 @@ const Sidebar = () => {
                         <Typography
                             variant="h6"
                             color={colors.grey[100]}
-                            sx={{m: "15px 0 5px 20px"}}
+                            sx={{ m: "15px 0 5px 20px" }}
                         >
                             {!isCollapsed ? "Grades" : "Grade..."}
                         </Typography>
@@ -236,33 +246,33 @@ const Sidebar = () => {
                                 setSelected={setSelected}
                             />
                         ))}
-                        
+
 
                         <Typography
                             variant="h6"
                             color={colors.grey[100]}
-                            sx={{m: "15px 0 5px 20px"}}
+                            sx={{ m: "15px 0 5px 20px" }}
                         >
                             Others
                         </Typography>
                         <Item
                             title="Message"
                             to="/message"
-                            icon={<ChatOutlinedIcon/>}
+                            icon={<ChatOutlinedIcon />}
                             selected={selected}
                             setSelected={setSelected}
                         />
                         <Item
                             title="Settings"
                             to="/settings"
-                            icon={<SettingsOutlinedIcon/>}
+                            icon={<SettingsOutlinedIcon />}
                             selected={selected}
                             setSelected={setSelected}
                         />
                         <Item
                             title="History"
                             to="/history"
-                            icon={<HistoryOutlinedIcon/>}
+                            icon={<HistoryOutlinedIcon />}
                             selected={selected}
                             setSelected={setSelected}
                         />
