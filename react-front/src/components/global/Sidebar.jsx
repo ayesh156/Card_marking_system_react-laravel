@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import {useState, useEffect, useCallback} from "react";
 import {Menu, MenuItem, ProSidebar} from "react-pro-sidebar";
-import { Box, IconButton, Typography, useTheme } from "@mui/material";
-import { Link, useLocation } from "react-router-dom";
-import { tokens } from "../../theme";
+import {Box, IconButton, Typography, useTheme} from "@mui/material";
+import {Link, useLocation, useNavigate} from "react-router-dom";
+import {tokens} from "../../theme";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
@@ -15,282 +15,264 @@ import "react-pro-sidebar/dist/css/styles.css";
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 
 
-const Item = ({ title, to, icon, selected, setSelected }) => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-  const location = useLocation();
+const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
 
-  useEffect(() => {
-    // Check if the current location pathname matches the 'to' prop
-    if (location.pathname === to) {
-      setSelected(title);
-    }
-  }, [location, to, setSelected, title]);
-
-  return (
-    <MenuItem
-      active={selected === title}
-      style={{
-        color: colors.grey[100],
-      }}
-      onClick={() => setSelected(title)}
-      icon={icon}
-    >
-      <Typography>{title}</Typography>
-      <Link to={to} />
-    </MenuItem>
-  );
+    return (
+        <MenuItem
+            active={selected === title}
+            style={{
+                color: colors.grey[100],
+            }}
+            onClick={() => setSelected(title)}
+            icon={icon}
+        >
+            <Typography>{title}</Typography>
+            <Link to={to} />
+        </MenuItem>
+    );
 };
 
-const Sidebar = ({ onLogin }) => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [selected, setSelected] = useState("Dashboard");
+const Sidebar = () => {
+    const theme = useTheme();
+    const colors = tokens(theme.palette.mode);
+    const navigate = useNavigate();
+    const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 767);
+    const [selected, setSelected] = useState("Dashboard");
+    const [selectedClass, setSelectedClass] = useState(null);
 
-  return (
-    <Box
-      sx={{
-        "& .pro-sidebar-inner": {
-          background: `${colors.primary[900]} !important`,
-        },
-        "& .pro-icon-wrapper": {
-          backgroundColor: "transparent !important",
-        },
-        "& .pro-inner-item": {
-          padding: "5px 35px 5px 20px !important",
-        },
-        "& .pro-inner-item:hover": {
-          color: "#868dfb !important",
-        },
-        "& .pro-menu-item.active": {
-          color: "#6870fa !important",
-        },
-      }}
-    >
-      {/*<ToastContainer />*/}
-      <ProSidebar width="220px" image="../../assets/bg.png" collapsed={isCollapsed} >
-        <Menu iconShape="square">
-          {/* LOGO AND MENU ICON */}
-          <MenuItem
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            icon={isCollapsed ? <MenuOutlinedIcon /> : undefined}
-            style={{
-              color: colors.grey[100],
+    useEffect(() => {
+        const storedClass = localStorage.getItem("selectedClass");
+        setSelectedClass(storedClass);
+    
+        const grade = localStorage.getItem("grade");
+        const pathName = location.pathname.split("/")[1]; // Get the first part of the path
+    
+        // Check if the path is one of the specific paths
+        if (["", "settings", "history", "message"].includes(pathName)) {
+            // Use the pathname to set the selected state
+            setSelected(pathName === "" ? "Dashboard" : pathName.charAt(0).toUpperCase() + pathName.slice(1));
+        } else if (grade) {
+            // Use the grade value from localStorage for other paths
+            setSelected(grade === "P" ? "Primary" : `Grade${grade}`);
+        }
+    }, [location]);
+
+     // Retrieve selectedClass from localStorage
+     useEffect(() => {
+        const storedClass = localStorage.getItem("selectedClass");
+        setSelectedClass(storedClass);
+    }, []);
+    
+
+    // Function to handle window resize
+    useEffect(() => {
+        const handleResize = () => {
+            setIsCollapsed(window.innerWidth <= 767);
+        };
+
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+
+    }, []);
+
+    const handleClasses = () => {
+        localStorage.removeItem("classSelected"); 
+        navigate("/");
+        window.location.reload();
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem("authenticated");
+        localStorage.removeItem("classSelected");
+        navigate("/");
+        window.location.reload();
+    };
+
+    // Determine which grades to show based on selectedClass
+    const getGradeItems = () => {
+        if (selectedClass === "E") {
+            // Show Primary to Grade 11
+            return [
+                { title: "Primary", to: "/primary" },
+                ...Array.from({ length: 11 }, (_, i) => ({
+                    title: `Grade${i + 1}`,
+                    to: `/grade${i + 1}`,
+                })),
+            ];
+        } else if (selectedClass === "S") {
+            // Show Grade 3 to Grade 5
+            return Array.from({ length: 3 }, (_, i) => ({
+                title: `Grade${i + 3}`,
+                to: `/grade${i + 3}`,
+            }));
+        } else if (selectedClass === "M") {
+            // Show Grade 6 to Grade 11
+            return Array.from({ length: 6 }, (_, i) => ({
+                title: `Grade${i + 6}`,
+                to: `/grade${i + 6}`,
+            }));
+        }
+        return []; // Default to no grades if no class is selected
+    };
+
+    const gradeItems = getGradeItems();
+
+    return (
+        <Box
+            sx={{
+                "& .pro-sidebar-inner": {
+                    background: `${colors.primary[900]} !important`,
+                },
+                "& .pro-icon-wrapper": {
+                    backgroundColor: "transparent !important",
+                },
+                "& .pro-inner-item": {
+                    padding: "5px 35px 5px 20px !important",
+                },
+                "& .pro-inner-item:hover": {
+                    color: "#868dfb !important",
+                },
+                "& .pro-menu-item.active": {
+                    color: "#6870fa !important",
+                },
             }}
-          >
-            {!isCollapsed && (
-              <Box
-                display="flex"
-                justifyContent="end"
-                alignItems="center"
-              >
-                <IconButton onClick={() => setIsCollapsed(!isCollapsed)}>
-                  <MenuOutlinedIcon />
-                </IconButton>
-              </Box>
-            )}
-          </MenuItem>
+        >
+            {/*<ToastContainer />*/}
+            <ProSidebar width="220px" image="../../assets/bg.png" collapsed={isCollapsed}>
+                <Menu iconShape="square">
+                    {/* LOGO AND MENU ICON */}
+                    <MenuItem
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        icon={isCollapsed ? <MenuOutlinedIcon/> : undefined}
+                        style={{
+                            color: colors.grey[100],
+                        }}
+                    >
+                        {!isCollapsed && (
+                            <Box
+                                display="flex"
+                                justifyContent="end"
+                                alignItems="center"
+                            >
+                                <IconButton onClick={() => setIsCollapsed(!isCollapsed)}>
+                                    <MenuOutlinedIcon/>
+                                </IconButton>
+                            </Box>
+                        )}
+                    </MenuItem>
 
-          {!isCollapsed && (
-            <Box mb="5px">
-              <Box display="flex" justifyContent="center" alignItems="center">
-                <img
-                  width="100px"
-                  height="100px"
-                  src={"../../assets/Zynergy.jpg"}
-                  style={{ cursor: "pointer", borderRadius: "50%" }}
-                />
-              </Box>
-              <Box textAlign="center">
-                <Typography
-                  variant="h2"
-                  color={colors.grey[100]}
-                  fontWeight="bold"
-                  sx={{ m: "10px 0 0 0" }}
-                >
-                    ZYNERGY
-                  {/*{initialValues.first_name === "" ? "Name" : initialValues.first_name}*/}
-                </Typography>
-                <Typography variant="h5" color={colors.greenAccent[500]}>
-                    zynergyedu@gmail.com
-                {/*{U_EMAIL}*/}
-                </Typography>
-              </Box>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                ml="15px"
-              ></Box>
-            </Box>
-          )}
+                    {!isCollapsed && (
+                        <Box mb="5px">
+                            <Box display="flex" justifyContent="center" alignItems="center">
+                                <img
+                                    width="100px"
+                                    height="100px"
+                                    src={"../../assets/logo.jpg"}
+                                    style={{cursor: "pointer", borderRadius: "50%"}}
+                                />
+                            </Box>
+                            <Box textAlign="center">
+                                <Typography
+                                    variant="h2"
+                                    color={colors.grey[100]}
+                                    fontWeight="bold"
+                                    sx={{m: "10px 0 0 0"}}
+                                >
+                                    ZYNERGY
+                                    {/*{initialValues.first_name === "" ? "Name" : initialValues.first_name}*/}
+                                </Typography>
+                                <Typography variant="h5" color={colors.greenAccent[500]}>
+                                    zynergyedu@gmail.com
+                                    {/*{U_EMAIL}*/}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
 
-          {/* MENU ITEMS */}
+                    {/* MENU ITEMS */}
 
-          <Box
-            paddingLeft={isCollapsed ? undefined : "13%"}
-          >
-            <Item
-              title="Logout"
-              to="/"
-              icon={<ExitToAppIcon />}
-              selected={selected}
-              setSelected={setSelected}
-            />
-              <Item
-                  title="Classes"
-                  to="/"
-                  icon={<ListIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-          </Box>
+                    <Box
+                        paddingLeft={isCollapsed ? undefined : "13%"}
+                    >
+                        <Item
+                            title="Logout"
+                            to="/"
+                            icon={<ExitToAppIcon/>}
+                            onClick={handleLogout}
+                        />
+                        <Item
+                            title="Classes"
+                            to="/"
+                            icon={<ListIcon/>}
+                            onClick={handleClasses}
+                        />
+                    </Box>
 
-          <Box mb="10px" paddingLeft={isCollapsed ? undefined : "10%"}>
-            <Item
-              title="Dashboard"
-              to="/"
-              icon={<HomeOutlinedIcon />}
-              selected={selected}
-              setSelected={setSelected}
-            />
+                    <Box mb="10px" paddingLeft={isCollapsed ? undefined : "10%"}>
+                        <Item
+                            title="Dashboard"
+                            to="/"
+                            icon={<HomeOutlinedIcon/>}
+                            selected={selected}
+                            setSelected={setSelected}
+                        />
 
-            <Typography
-              variant="h6"
-              color={colors.grey[100]}
-              sx={{ m: "15px 0 5px 20px" }}
-            >
-              {!isCollapsed ? "Grades" : "Grade..."}
-            </Typography>
-            <Item
-              title="Primary"
-              to="/primary"
-              icon={<RadioButtonCheckedIcon />}
-              selected={selected}
-              setSelected={setSelected}
-            />
-              <Item
-                  title="Grade1"
-                  to="/grade1"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
+                        <Typography
+                            variant="h6"
+                            color={colors.grey[100]}
+                            sx={{m: "15px 0 5px 20px"}}
+                        >
+                            {!isCollapsed ? "Grades" : "Grade..."}
+                        </Typography>
 
-              <Item
-                  title="Grade2"
-                  to="/grade2"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
+                        {/* Dynamically Render Grade Items */}
+                        {gradeItems.map((grade) => (
+                            <Item
+                                key={grade.title}
+                                title={grade.title}
+                                to={grade.to}
+                                icon={<RadioButtonCheckedIcon />}
+                                selected={selected}
+                                setSelected={setSelected}
+                            />
+                        ))}
+                        
 
-              <Item
-                  title="Grade3"
-                  to="/grade3"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Item
-                  title="Grade4"
-                  to="/grade4"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Item
-                  title="Grade5"
-                  to="/grade5"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Item
-                  title="Grade6"
-                  to="/grade6"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Item
-                  title="Grade7"
-                  to="/grade7"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Item
-                  title="Grade8"
-                  to="/grade8"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Item
-                  title="Grade9"
-                  to="/grade9"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Item
-                  title="Grade10"
-                  to="/grade10"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Item
-                  title="Grade11"
-                  to="/grade11"
-                  icon={<RadioButtonCheckedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-
-              <Typography
-                  variant="h6"
-                  color={colors.grey[100]}
-                  sx={{ m: "15px 0 5px 20px" }}
-              >
-                  Others
-              </Typography>
-              <Item
-                  title="Message"
-                  to="/message"
-                  icon={<ChatOutlinedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-              <Item
-                  title="Settings"
-                  to="/settings"
-                  icon={<SettingsOutlinedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-              <Item
-                  title="History"
-                  to="/history"
-                  icon={<HistoryOutlinedIcon />}
-                  selected={selected}
-                  setSelected={setSelected}
-              />
-          </Box>
-        </Menu>
-      </ProSidebar>
-    </Box>
-  );
+                        <Typography
+                            variant="h6"
+                            color={colors.grey[100]}
+                            sx={{m: "15px 0 5px 20px"}}
+                        >
+                            Others
+                        </Typography>
+                        <Item
+                            title="Message"
+                            to="/message"
+                            icon={<ChatOutlinedIcon/>}
+                            selected={selected}
+                            setSelected={setSelected}
+                        />
+                        <Item
+                            title="Settings"
+                            to="/settings"
+                            icon={<SettingsOutlinedIcon/>}
+                            selected={selected}
+                            setSelected={setSelected}
+                        />
+                        <Item
+                            title="History"
+                            to="/history"
+                            icon={<HistoryOutlinedIcon/>}
+                            selected={selected}
+                            setSelected={setSelected}
+                        />
+                    </Box>
+                </Menu>
+            </ProSidebar>
+        </Box>
+    );
 };
 
 export default Sidebar;

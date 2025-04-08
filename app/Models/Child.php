@@ -8,10 +8,24 @@ use Illuminate\Database\Eloquent\Model;
 class Child extends Model
 {
     use HasFactory;
+    
+    // Enable timestamps (default behavior)
+    public $timestamps = true;
 
     protected $table = 'child';
 
-    protected $fillable = ['id','name', 'number'];
+    protected $fillable = [
+        'sno',
+        'name',
+        'address1',
+        'address2',
+        'school',
+        'gName',
+        'gMobile',
+        'gWhatsapp',
+        'gender',
+        'dob',
+    ];
 
     public function reports()
     {

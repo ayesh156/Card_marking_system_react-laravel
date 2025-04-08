@@ -6,17 +6,21 @@ const Header = ({ title, subtitle }) => {
   const colors = tokens(theme.palette.mode);
 
   return (
-    <Box mb="30px">
+    <Box mb="20px">
       <Typography
         variant="h2"
         color={colors.grey[100]}
         fontWeight="bold"
-        sx={{ mb: "5px" }}
+        sx={{ mb: "5px", "@media (max-width: 767px)": {
+                fontSize: "24px",
+            }, }}
         textTransform={"capitalize"}
       >
         {title}
       </Typography>
-      <Typography variant="h5" color={colors.greenAccent[400]}>
+      <Typography variant="h5" color={colors.greenAccent[400]} sx={{ "@media (max-width: 767px)": {
+              fontSize: "14px",
+          }, }}>
         {subtitle}
       </Typography>
     </Box>

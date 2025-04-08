@@ -11,19 +11,21 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('child_reports', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('child_id')->constrained('child')->onDelete('cascade'); // Explicitly reference the 'child' table
-            $table->foreignId('month_id')->constrained('months')->onDelete('cascade');
-            $table->foreignId('year_id')->constrained('years')->onDelete('cascade');
-            $table->boolean('week1')->default(false);
-            $table->boolean('week2')->default(false);
-            $table->boolean('week3')->default(false);
-            $table->boolean('week4')->default(false);
-            $table->boolean('week5')->default(false);
-            $table->boolean('paid')->default(false);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('child_reports')) { // Check if the table already exists
+            Schema::create('child_reports', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('child_id')->constrained('child')->onDelete('cascade'); // Explicitly reference the 'child' table
+                $table->foreignId('month_id')->constrained('months')->onDelete('cascade');
+                $table->foreignId('year_id')->constrained('years')->onDelete('cascade');
+                $table->boolean('week1')->default(false);
+                $table->boolean('week2')->default(false);
+                $table->boolean('week3')->default(false);
+                $table->boolean('week4')->default(false);
+                $table->boolean('week5')->default(false);
+                $table->boolean('paid')->default(false);
+                $table->timestamps();
+            });
+        }
     }
     
 
