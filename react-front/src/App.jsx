@@ -47,14 +47,20 @@ function App() {
     }, [authenticated, classSelected, selectedClass]);
 
     const handleLogin = () => {
+        Cookies.set("authenticated", true); 
         setAuthenticated(true); // Set authenticated to true
         navigate("/"); // Navigate to the main app layout
     };
 
     const handleClassSelection = (className) => {
-        setClassSelected(true); // Mark a class as selected
-        setSelectedClass(className); // Set the selected class
-        navigate("/"); // Navigate to the main app layout
+        Cookies.set("classSelected", true);
+        Cookies.set("selectedClass", className);
+        setClassSelected(true);
+        setSelectedClass(className);
+    
+        setTimeout(() => {
+            navigate("/"); // Navigate after a short delay
+        }, 100); // 100ms delay
     };
 
     return (
