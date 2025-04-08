@@ -30,6 +30,7 @@ import ToastNotification from "../components/ToastNotification.jsx";
 import CircularProgress, {
     circularProgressClasses,
   } from '@mui/material/CircularProgress';
+import { student } from "../data/mockData.js";
   
 
 const phoneRegExp = /^[0-9]{10}$/; // Adjusted for 10-digit phone numbers
@@ -136,32 +137,55 @@ const New_Customer = () => {
 
     useEffect(() => {
         if (childId) {
-            // Fetch data from the backend for the given child_id
+
+            // Fetch data from the mockdata for the given child_id
             setIsPageLoading(true);
             
-            axiosClient
-                .get(`/children/${childId}`) // Replace with your backend endpoint
-                .then(({ data }) => {
-                    setInitialFormValues({
-                        sno: data.sno || "",
-                        name: data.name || "",
-                        dob: data.dob || null,
-                        address1: data.address1 || "",
-                        address2: data.address2 || "",
-                        school: data.school || "",
-                        gName: data.gName || "",
-                        gMobile: data.gMobile || "",
-                        gWhatsapp: data.gWhatsapp || "",
-                        gender: data.gender || "female",
-                    });
-                })
-                .catch((error) => {
-                    ToastNotification("Failed to fetch student data", "error", theme.palette.mode);
-                    console.error("Error fetching student data:", error);
-                })
-                .finally(() => {
-                    setIsPageLoading(false);
+            const studentData = student.find((item) => item.id === childId); // Find the object by id
+            if (studentData) {
+                setInitialFormValues({
+                    sno: studentData.sno || "",
+                    name: studentData.name || "",
+                    dob: studentData.dob || null,
+                    address1: studentData.address1 || "",
+                    address2: studentData.address2 || "",
+                    school: studentData.school || "",
+                    gName: studentData.gName || "",
+                    gMobile: studentData.gMobile || "",
+                    gWhatsapp: studentData.gWhatsapp || "",
+                    gender: studentData.gender || "female",
                 });
+                setIsPageLoading(false);
+            } else {
+                console.error("Student not found");
+            }
+
+            // Backend
+            
+            // axiosClient
+            //     .get(`/children/${childId}`) // Replace with your backend endpoint                
+            //     .then(({ data }) => {
+            //         setInitialFormValues({
+            //             sno: data.sno || "",
+            //             name: data.name || "",
+            //             dob: data.dob || null,
+            //             address1: data.address1 || "",
+            //             address2: data.address2 || "",
+            //             school: data.school || "",
+            //             gName: data.gName || "",
+            //             gMobile: data.gMobile || "",
+            //             gWhatsapp: data.gWhatsapp || "",
+            //             gender: data.gender || "female",
+            //         });
+            //         console.log(data);
+            //     })
+            //     .catch((error) => {
+            //         ToastNotification("Failed to fetch student data", "error", theme.palette.mode);
+            //         console.error("Error fetching student data:", error);
+            //     })
+            //     .finally(() => {
+            //         setIsPageLoading(false);
+            //     });
         }
     }, [childId]);
    
