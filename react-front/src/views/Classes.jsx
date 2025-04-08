@@ -13,7 +13,7 @@ const Classes = ({ onClassSelect }) => {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        Cookies.remove("authenticated");
+        Cookies.set("authenticated", "false");
         navigate("/");
         window.location.reload();
     };
