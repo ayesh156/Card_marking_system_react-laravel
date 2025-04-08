@@ -42,8 +42,7 @@ const Sidebar = () => {
     const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 767);
     const [selected, setSelected] = useState("Dashboard");
     const [selectedClass, setSelectedClass] = useState(null);
-    const hasRefreshed = useRef(false); // Ref to track if the page has already refreshed
-
+    const hasGradeSet = useRef(false); 
 
     useEffect(() => {
         const storedClass = Cookies.get("selectedClass"); // Get the selected class from cookies
@@ -93,6 +92,7 @@ const Sidebar = () => {
     const getGradeItems = () => {
         if (selectedClass === "E") {
             // Show Primary to Grade 11
+            hasGradeSet.current = true;
             return [
                 { title: "Primary", to: "/primary" },
                 ...Array.from({ length: 11 }, (_, i) => ({
@@ -102,12 +102,14 @@ const Sidebar = () => {
             ];
         } else if (selectedClass === "S") {
             // Show Grade 3 to Grade 5
+            hasGradeSet.current = true;
             return Array.from({ length: 3 }, (_, i) => ({
                 title: `Grade${i + 3}`,
                 to: `/grade${i + 3}`,
             }));
         } else if (selectedClass === "M") {
             // Show Grade 6 to Grade 11
+            hasGradeSet.current = true;
             return Array.from({ length: 6 }, (_, i) => ({
                 title: `Grade${i + 6}`,
                 to: `/grade${i + 6}`,
@@ -120,11 +122,10 @@ const Sidebar = () => {
 
      // Refresh the page only once when gradeItems are set
      useEffect(() => {
-        if (gradeItems.length > 0 && !hasRefreshed.current) {
-            hasRefreshed.current = true; // Mark as refreshed
+        if(hasGradeSet.current){
             window.location.reload(); // Reload the page
         }
-    }, []);
+    }, [hasGradeSet]);
 
 
     return (
