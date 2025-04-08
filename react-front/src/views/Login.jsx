@@ -42,8 +42,8 @@ const SignIn = ({ onLogin }) => {
 
     // Load user data from localStorage on component mount
     useEffect(() => {
-        const savedEmail = localStorage.getItem("rememberedEmail");
-        const savedPassword = localStorage.getItem("rememberedPassword");
+        const savedEmail = Cookies.get("rememberedEmail");
+        const savedPassword = Cookies.get("rememberedPassword");
         if (savedEmail && savedPassword) {
             setInitialValuesSignIn({
                 email: savedEmail,
@@ -60,12 +60,12 @@ const SignIn = ({ onLogin }) => {
     const handleFormSubmitSignIn = (values) => {
         if (rememberMe) {
             // Save email and password to localStorage
-            localStorage.setItem("rememberedEmail", values.email);
-            localStorage.setItem("rememberedPassword", values.password);
+            Cookies.set("rememberedEmail", values.email, { expires: 30 });
+            Cookies.set("rememberedPassword", values.password, { expires: 30 });
         } else {
             // Clear email and password from localStorage
-            localStorage.removeItem("rememberedEmail");
-            localStorage.removeItem("rememberedPassword");
+            Cookies.remove("rememberedEmail");
+            Cookies.remove("rememberedPassword");
         }
 
         // Simulate login
