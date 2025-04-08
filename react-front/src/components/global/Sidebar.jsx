@@ -1,7 +1,7 @@
 import {useState, useEffect, useCallback} from "react";
 import {Menu, MenuItem, ProSidebar} from "react-pro-sidebar";
 import {Box, IconButton, Typography, useTheme} from "@mui/material";
-import {Link, useLocation, useNavigate} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import {tokens} from "../../theme";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
@@ -13,6 +13,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import "react-toastify/dist/ReactToastify.css";
 import "react-pro-sidebar/dist/css/styles.css";
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
+import Cookies from "js-cookie";
 
 
 const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
@@ -25,7 +26,7 @@ const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
             style={{
                 color: colors.grey[100],
             }}
-            onClick={() => setSelected(title)}
+            onClick={onClick}
             icon={icon}
         >
             <Typography>{title}</Typography>
@@ -43,27 +44,24 @@ const Sidebar = () => {
     const [selectedClass, setSelectedClass] = useState(null);
 
     useEffect(() => {
-        const storedClass = localStorage.getItem("selectedClass");
+        const storedClass = Cookies.get("selectedClass"); // Get the selected class from cookies
         setSelectedClass(storedClass);
-    
-        const grade = localStorage.getItem("grade");
+
+        const grade = Cookies.get("grade"); // Get the grade from cookies
         const pathName = location.pathname.split("/")[1]; // Get the first part of the path
-    
+
         // Check if the path is one of the specific paths
         if (["", "settings", "history", "message"].includes(pathName)) {
             // Use the pathname to set the selected state
             setSelected(pathName === "" ? "Dashboard" : pathName.charAt(0).toUpperCase() + pathName.slice(1));
         } else if (grade) {
-            // Use the grade value from localStorage for other paths
+            // Use the grade value from cookies for other paths
             setSelected(grade === "P" ? "Primary" : `Grade${grade}`);
         }
+
+        console.log("Selected Class:", Cookies.get("classSelected")); // Log the selected class
     }, [location]);
 
-     // Retrieve selectedClass from localStorage
-     useEffect(() => {
-        const storedClass = localStorage.getItem("selectedClass");
-        setSelectedClass(storedClass);
-    }, []);
     
 
     // Function to handle window resize
@@ -78,16 +76,16 @@ const Sidebar = () => {
     }, []);
 
     const handleClasses = () => {
-        localStorage.removeItem("classSelected"); 
+        Cookies.set("classSelected", "false");
         navigate("/");
         window.location.reload();
     };
 
     const handleLogout = () => {
-        localStorage.removeItem("authenticated");
-        localStorage.removeItem("classSelected");
-        navigate("/");
-        window.location.reload();
+        Cookies.set("authenticated", "false"); // Set authenticated to false
+        Cookies.set("classSelected", "false"); // Set classSelected to false
+        navigate("/"); // Navigate to the home page
+        window.location.reload(); // Reload the page to reset the state
     };
 
     // Determine which grades to show based on selectedClass

@@ -9,6 +9,7 @@ import StudentPage from "./views/StudentPage.jsx";
 import Classes from "./views/Classes.jsx";
 import Login from "./views/Login.jsx";
 import Dashboard from "./views/Dashboard.jsx";
+import Cookies from "js-cookie";
 
 function App() {
     const [theme, colorMode] = useMode();
@@ -16,33 +17,33 @@ function App() {
 
     // Load initial states from localStorage
     const [authenticated, setAuthenticated] = useState(() => {
-        return localStorage.getItem("authenticated") === "true";
+        return Cookies.get("authenticated") === "true";
     });
     const [classSelected, setClassSelected] = useState(() => {
-        return localStorage.getItem("classSelected") === "true";
+        return Cookies.get("classSelected") === "true";
     });
     const [selectedClass, setSelectedClass] = useState(() => {
-        return localStorage.getItem("selectedClass") || null;
+        return Cookies.get("selectedClass") || null;
     });
 
-    // Update the grade value in localStorage based on selectedClass
+    // Update the grade value in cookies based on selectedClass
     useEffect(() => {
         if (selectedClass === "E") {
-            localStorage.setItem("grade", "P"); // Primary
+            Cookies.set("grade", "P"); // Primary
         } else if (selectedClass === "M") {
-            localStorage.setItem("grade", "6"); // Grade 6
+            Cookies.set("grade", "6"); // Grade 6
         } else if (selectedClass === "S") {
-            localStorage.setItem("grade", "3"); // Grade 3
+            Cookies.set("grade", "3"); // Grade 3
         } else {
-            localStorage.removeItem("grade"); // Clear grade if no valid selectedClass
+            Cookies.remove("grade"); // Clear grade if no valid selectedClass
         }
     }, [selectedClass]);
 
-    // Save states to localStorage whenever they change
+    // Save states to cookies whenever they change
     useEffect(() => {
-        localStorage.setItem("authenticated", authenticated);
-        localStorage.setItem("classSelected", classSelected);
-        localStorage.setItem("selectedClass", selectedClass);
+        Cookies.set("authenticated", authenticated);
+        Cookies.set("classSelected", classSelected);
+        Cookies.set("selectedClass", selectedClass);
     }, [authenticated, classSelected, selectedClass]);
 
     const handleLogin = () => {

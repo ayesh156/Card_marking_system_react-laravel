@@ -7,6 +7,7 @@ import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
+import Cookies from "js-cookie";
 
 const Topbar = () => {
   const theme = useTheme();
@@ -15,10 +16,10 @@ const Topbar = () => {
   const isSmallScreen = useMediaQuery("(max-width:768px)");
   const [selectedClass, setSelectedClass] = useState(null);
 
-  // Retrieve selected class from localStorage
+  // Retrieve selected class from Cookies
   useEffect(() => {
-    const storedClass = localStorage.getItem("selectedClass");
-    setSelectedClass(storedClass); // Set the selected class from localStorage
+    const storedClass = Cookies.get("selectedClass"); // Get the selected class from cookies
+    setSelectedClass(storedClass); // Set the selected class from cookies
   }, []);
 
   // Map selectedClass to full class name

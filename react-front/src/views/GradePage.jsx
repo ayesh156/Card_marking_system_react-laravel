@@ -45,7 +45,7 @@ const GradePage = () => {
         try {
             const response = await axiosClient.get("/child_reports");
             // setChildren(response.data);
-            console.log(response.data);
+            // console.log(response.data);
         } catch (error) {
             ToastNotification(`Error fetching children: ${error}`, "error", themeMode);
             console.error("Error fetching children:", error);

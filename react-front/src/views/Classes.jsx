@@ -2,7 +2,7 @@ import React from "react";
 import { Button, Card, CardContent, Typography, Box } from "@mui/material";
 import ClassesCard from "../components/ClassesCard";
 import { useNavigate } from "react-router-dom";
-
+import Cookies from "js-cookie";
 
 const Classes = ({ onClassSelect }) => {
     const classes = [
@@ -13,7 +13,7 @@ const Classes = ({ onClassSelect }) => {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        localStorage.removeItem("authenticated");
+        Cookies.remove("authenticated");
         navigate("/");
         window.location.reload();
     };
