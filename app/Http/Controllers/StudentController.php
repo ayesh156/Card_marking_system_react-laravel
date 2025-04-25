@@ -47,13 +47,32 @@ class StudentController extends Controller
     }
 
     // change status a student
-    public function status($id)
+    public function status($id, Request $request)
     {
-        $student = Student::findOrFail($id); // Find the student by ID
-        $student->update(['status' => false]); // Set the status column to false
+        // Validate the request
+        $request->validate([
+            'selectedClass' => 'required|string|in:M,E,S', // Validate selectedClass
+        ]);
+
+        // Find the student by ID
+        $student = Student::findOrFail($id);
+
+        // Update the corresponding column based on selectedClass
+        $selectedClass = $request->selectedClass;
+
+        if ($selectedClass === 'M') {
+            $student->maths = false; // Set maths to false
+        } elseif ($selectedClass === 'E') {
+            $student->english = false; // Set english to false
+        } elseif ($selectedClass === 'S') {
+            $student->scholarship = false; // Set scholarship to false
+        }
+
+        // Save the changes
+        $student->save();
 
         return response()->json([
-            'message' => 'Student deleted successfully!',
+            'message' => 'Student class updated successfully!',
         ], 200);
     }
 
@@ -69,7 +88,7 @@ class StudentController extends Controller
     {
         // Validate the request
         $request->validate([
-            'status' => 'required|boolean',
+            'selectedClass' => 'required|string|in:M,E,S', // Validate selectedClass
         ]);
 
         // Find the student by sno
@@ -79,10 +98,20 @@ class StudentController extends Controller
             return response()->json(['message' => 'Student not found'], 404);
         }
 
-        // Update the status
-        $student->status = $request->status;
+        // Update the corresponding column based on selectedClass
+        $selectedClass = $request->selectedClass;
+
+        if ($selectedClass === 'M' && !$student->maths) {
+            $student->maths = true;
+        } elseif ($selectedClass === 'E' && !$student->english) {
+            $student->english = true;
+        } elseif ($selectedClass === 'S' && !$student->scholarship) {
+            $student->scholarship = true;
+        }
+
+        // Save the changes
         $student->save();
 
-        return response()->json(['message' => 'Student enabled successfully!'], 200);
+        return response()->json(['message' => 'Student status and class updated successfully!'], 200);
     }
 }

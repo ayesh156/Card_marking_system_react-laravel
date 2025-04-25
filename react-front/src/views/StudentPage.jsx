@@ -128,6 +128,7 @@ const New_Customer = () => {
     // State for autocomplete suggestions
     const [suggestions, setSuggestions] = useState([]);
     const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+    const [selectedClass, setSelectedClass] = useState(Cookies.get("selectedClass") || null);
 
     // ... (useEffect for pageTitle and fetching student data remains unchanged)
 
@@ -227,8 +228,6 @@ const New_Customer = () => {
         setIsLoading(true);
         // console.log(dataToSend);
 
-        // Retrieve the selectedClass cookie value
-        const selectedClass = Cookies.get("selectedClass");
         const grade = Cookies.get("grade");
 
         // Dynamically set maths, english, and scholarship based on selectedClass
@@ -259,7 +258,6 @@ const New_Customer = () => {
             maths,
             english,
             scholarship,
-            status: true
         };
         // console.log(payload);
 
@@ -336,7 +334,9 @@ const New_Customer = () => {
                     if (buttonText === "Enable") {
                         // Handle enabling the student status
                         try {
-                            await axiosClient.put(`/student/status/${values.sno}`, { status: true });
+                            await axiosClient.put(`/student/status/${values.sno}`, {
+                                selectedClass, // Pass the selectedClass
+                            });
                             ToastNotification("Student status updated successfully!", "success", themeMode);
                             setButtonText("Save"); // Reset button text to "Save" after enabling
                         } catch (error) {

@@ -36,7 +36,6 @@ class StudentRequest extends FormRequest
             'english' => 'required|boolean',
             'scholarship' => 'required|boolean',
             'grade' => 'nullable|string|max:1',
-            'status' => 'required|boolean',
         ];
     }
 }

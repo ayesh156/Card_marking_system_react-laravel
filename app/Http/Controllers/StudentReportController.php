@@ -233,11 +233,14 @@ class StudentReportController extends Controller
             $previousYearId = $previousYearRecord ? $previousYearRecord->id : $yearId;
         }
 
+        // Get current year in Asia/Colombo timezone
+        $colomboYear = Carbon::now('Asia/Colombo')->year;
+
         // Fetch all students with their reports for the current year and month
         $studentsQuery = Student::with(['reports' => function ($query) use ($yearId, $monthId) {
             $query->where('year_id', $yearId)
                 ->where('month_id', $monthId);
-        }]);
+        }])->whereYear('created_at', $colomboYear);
 
         // Filter by grade if provided
         if ($grade) {
@@ -337,11 +340,30 @@ class StudentReportController extends Controller
             $previousYearId = $previousYearRecord ? $previousYearRecord->id : $yearId;
         }
 
+        // Fetch the day_id from the classes table
+        $classRecord = Classes::where('class_name', $class)
+            ->where('grade', $grade)
+            ->first();
+        $dayId = $classRecord ? $classRecord->day_id : null;
+
+        // Calculate the dayHeaders based on day_id
+        $dayHeaders = [];
+        if ($dayId) {
+            $daysInMonth = Carbon::createFromDate($year, $month)->daysInMonth; // Get the number of days in the month
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $date = Carbon::createFromDate($year, $month, $day); // Create a date object
+                if ($date->dayOfWeekIso === $dayId) { // Match the day_id (1 for Monday, etc.)
+                    $dayHeaders[] = $month . '/' . $day; // Format as 'month/day'
+                }
+            }
+        }
+
         // Fetch all students with their reports for the specified year, month, and grade
+        // Only include students created in the same year as requested year
         $studentsQuery = Student::with(['reports' => function ($query) use ($yearId, $monthId) {
             $query->where('year_id', $yearId)
                 ->where('month_id', $monthId);
-        }]);
+        }])->whereYear('created_at', $year);
 
         // Filter by grade if provided
         if ($grade) {
@@ -359,12 +381,21 @@ class StudentReportController extends Controller
 
         $students = $studentsQuery->get();
 
+        // Update the status column dynamically based on maths, english, and scholarship
+        foreach ($students as $student) {
+            if (!$student->maths && !$student->english && !$student->scholarship) {
+                $student->status = false; // Set status to false if all are false
+            } else {
+                $student->status = true; // Set status to true if at least one is true
+            }
+        }
+
         // Format the response
         $formattedData = $students->map(function ($student) use ($yearId, $monthId, $previousYearId, $previousMonthId) {
             $report = $student->reports->first(); // Get the report for the specified year and month, if it exists
 
             // Check if any of the specified fields are null
-            $fieldsToCheck = ['address1', 'school', 'g_name', 'g_mobile', 'gender', 'dob'];
+            $fieldsToCheck = ['address1', 'school', 'g_name', 'g_mobile', 'gender', 'dob', 'created_at'];
             $isRegistered = true;
 
             foreach ($fieldsToCheck as $field) {
@@ -403,6 +434,7 @@ class StudentReportController extends Controller
                 'child_name' => $student->name,
                 'sno' => $student->sno,
                 'gWhatsapp' => $student->g_whatsapp,
+                'created_at' => $student->created_at,
                 'week1' => boolval($report->week1 ?? false), // Cast to boolean
                 'week2' => boolval($report->week2 ?? false), // Cast to boolean
                 'week3' => boolval($report->week3 ?? false), // Cast to boolean
@@ -414,12 +446,15 @@ class StudentReportController extends Controller
                 'english' => boolval($student->english),     // Get english value from students table
                 'scholarship' => boolval($student->scholarship), // Get scholarship value from students table
                 'grade' => $student->grade,                 // Get grade value from students table
-                'status' => boolval($student->status),
+                'status' => $student->status,
                 'notpaid' => $notPaidStatus                 // Add notpaid status
             ];
         });
 
-        return response()->json($formattedData);
+        return response()->json([
+            'students' => $formattedData,
+            'dayHeaders' => $dayHeaders, // Include the calculated dayHeaders
+        ]);
     }
 
     /**
@@ -455,7 +490,7 @@ class StudentReportController extends Controller
         $phoneNumbers = Student::whereNotNull('g_whatsapp')->pluck('g_whatsapp')->toArray();
 
         $responses = []; // To store responses for each phone number
-     
+
 
         // foreach ($phoneNumbers as $phoneNumber) {
         //     // Format the phone number (if needed)
@@ -512,5 +547,231 @@ class StudentReportController extends Controller
             'message' => 'Messages sent successfully.',
             'responses' => $responses,
         ]);
+    }
+
+    public function dashboardStats(Request $request)
+    {
+        $selectedClass = $request->query('selectedClass'); // from cookie/query param
+
+        // Get current year and month IDs
+        $currentYearMonth = $this->getCurrentYearAndMonthId();
+        $yearId = $currentYearMonth['year_id'];
+        $monthId = $currentYearMonth['month_id'];
+
+        // Get previous month and year IDs
+        $previousMonthId = $monthId - 1;
+        $previousYearId = $yearId;
+        if ($previousMonthId < 1) {
+            $previousMonthId = 12;
+            $previousYearRecord = Year::where('id', '<', $yearId)->orderBy('id', 'desc')->first();
+            $previousYearId = $previousYearRecord ? $previousYearRecord->id : $yearId;
+        }
+
+        // Get current year in Asia/Colombo timezone
+        $colomboYear = Carbon::now('Asia/Colombo')->year;
+
+        // Filter students by selectedClass and created in current year (Asia/Colombo)
+        $studentsQuery = Student::query()
+            ->whereYear('created_at', $colomboYear)
+            ->where(function ($query) {
+                $query->where('maths', true)
+                    ->orWhere('english', true)
+                    ->orWhere('scholarship', true);
+            });
+
+        if ($selectedClass === 'M') {
+            $studentsQuery->where('maths', true);
+        } elseif ($selectedClass === 'E') {
+            $studentsQuery->where('english', true);
+        } elseif ($selectedClass === 'S') {
+            $studentsQuery->where('scholarship', true);
+        }
+        $totalStudents = $studentsQuery->count();
+
+        // Paid students this month
+        $paidStudentIds = StudentReport::where('year_id', $yearId)
+            ->where('month_id', $monthId)
+            ->where('paid', true)
+            ->pluck('student_id')
+            ->unique();
+
+        $paidStudentsCount = Student::whereIn('id', $paidStudentIds)
+            ->whereYear('created_at', $colomboYear)
+            ->where(function ($query) {
+                $query->where('maths', true)
+                    ->orWhere('english', true)
+                    ->orWhere('scholarship', true);
+            })
+            ->when($selectedClass === 'M', fn($q) => $q->where('maths', true))
+            ->when($selectedClass === 'E', fn($q) => $q->where('english', true))
+            ->when($selectedClass === 'S', fn($q) => $q->where('scholarship', true))
+            ->count();
+
+        $paidStudentPercentage = $totalStudents > 0 ? round(($paidStudentsCount / $totalStudents) * 100, 2) : 0;
+
+        // Attendance last week (get week number for last week)
+        $lastWeekNumber = now('Asia/Colombo')->subWeek()->weekOfMonth;
+        $attendanceLastWeekIds = StudentReport::where('year_id', $yearId)
+            ->where('month_id', $monthId)
+            ->where("week{$lastWeekNumber}", true)
+            ->pluck('student_id')
+            ->unique();
+
+        $attendanceLastWeekCount = Student::whereIn('id', $attendanceLastWeekIds)
+            ->whereYear('created_at', $colomboYear)
+            ->where(function ($query) {
+                $query->where('maths', true)
+                    ->orWhere('english', true)
+                    ->orWhere('scholarship', true);
+            })
+            ->when($selectedClass === 'M', fn($q) => $q->where('maths', true))
+            ->when($selectedClass === 'E', fn($q) => $q->where('english', true))
+            ->when($selectedClass === 'S', fn($q) => $q->where('scholarship', true))
+            ->count();
+        $attendanceLastWeekPercentage = $totalStudents > 0 ? round(($attendanceLastWeekCount / $totalStudents) * 100, 2) : 0;
+
+        // Paid students last month
+        $paidLastMonthIds = StudentReport::where('year_id', $previousYearId)
+            ->where('month_id', $previousMonthId)
+            ->where('paid', true)
+            ->pluck('student_id')
+            ->unique();
+
+        $paidLastMonthCount = Student::whereIn('id', $paidLastMonthIds)
+            ->whereYear('created_at', $colomboYear)
+            ->where(function ($query) {
+                $query->where('maths', true)
+                    ->orWhere('english', true)
+                    ->orWhere('scholarship', true);
+            })
+            ->when($selectedClass === 'M', fn($q) => $q->where('maths', true))
+            ->when($selectedClass === 'E', fn($q) => $q->where('english', true))
+            ->when($selectedClass === 'S', fn($q) => $q->where('scholarship', true))
+            ->count();
+
+        $paidLastMonthPercentage = $totalStudents > 0 ? round(($paidLastMonthCount / $totalStudents) * 100, 2) : 0;
+
+        return response()->json([
+            'total_students' => $totalStudents,
+            'paid_students' => $paidStudentsCount,
+            'paid_student_percentage' => $paidStudentPercentage,
+            'attendance_last_week' => $attendanceLastWeekCount,
+            'attendance_last_week_percentage' => $attendanceLastWeekPercentage,
+            'paid_last_month' => $paidLastMonthCount,
+            'paid_last_month_percentage' => $paidLastMonthPercentage,
+        ]);
+    }
+
+    public function monthlyAttendanceStats(Request $request)
+    {
+        $colomboYear = Carbon::now('Asia/Colombo')->year;
+        $months = Month::orderBy('id')->get();
+        $result = [];
+
+        foreach ($months as $month) {
+            $monthId = $month->id;
+
+            // Maths attendance
+            $mathsAttendance = StudentReport::where('year_id', function ($q) use ($colomboYear) {
+                $q->select('id')->from('years')->where('year', $colomboYear)->limit(1);
+            })
+                ->where('month_id', $monthId)
+                ->whereHas('student', function ($q) {
+                    $q->where('maths', true);
+                })
+                ->where(function ($q) {
+                    $q->where('week1', true)
+                        ->orWhere('week2', true)
+                        ->orWhere('week3', true)
+                        ->orWhere('week4', true)
+                        ->orWhere('week5', true);
+                })
+                ->count();
+
+            // English attendance
+            $englishAttendance = StudentReport::where('year_id', function ($q) use ($colomboYear) {
+                $q->select('id')->from('years')->where('year', $colomboYear)->limit(1);
+            })
+                ->where('month_id', $monthId)
+                ->whereHas('student', function ($q) {
+                    $q->where('english', true);
+                })
+                ->where(function ($q) {
+                    $q->where('week1', true)
+                        ->orWhere('week2', true)
+                        ->orWhere('week3', true)
+                        ->orWhere('week4', true)
+                        ->orWhere('week5', true);
+                })
+                ->count();
+
+            // Scholarship attendance
+            $scholarshipAttendance = StudentReport::where('year_id', function ($q) use ($colomboYear) {
+                $q->select('id')->from('years')->where('year', $colomboYear)->limit(1);
+            })
+                ->where('month_id', $monthId)
+                ->whereHas('student', function ($q) {
+                    $q->where('scholarship', true);
+                })
+                ->where(function ($q) {
+                    $q->where('week1', true)
+                        ->orWhere('week2', true)
+                        ->orWhere('week3', true)
+                        ->orWhere('week4', true)
+                        ->orWhere('week5', true);
+                })
+                ->count();
+
+            // Use first 2 letters of month name + '.'
+            $shortMonth = substr($month->name, 0, 3) . '.';
+
+            $result[] = [
+                'name' => $shortMonth,
+                'maths' => $mathsAttendance,
+                'english' => $englishAttendance,
+                'scholarship' => $scholarshipAttendance,
+            ];
+        }
+
+        return response()->json($result);
+    }
+
+    public function recentPayments(Request $request)
+    {
+        // Get current year and month in Asia/Colombo timezone
+        $colomboYear = Carbon::now('Asia/Colombo')->year;
+        $colomboMonth = Carbon::now('Asia/Colombo')->month;
+
+        // Get year_id and month_id
+        $year = Year::where('year', $colomboYear)->first();
+        $month = Month::where('id', $colomboMonth)->first();
+
+        if (!$year || !$month) {
+            return response()->json([]);
+        }
+
+        $yearId = $year->id;
+        $monthId = $month->id;
+
+        // Get top 5 paid student reports for this year and month, ordered by updated_at desc
+        $reports = StudentReport::where('year_id', $yearId)
+            ->where('month_id', $monthId)
+            ->where('paid', true)
+            ->orderBy('updated_at', 'desc')
+            ->with('student:id,sno,name')
+            ->limit(4)
+            ->get();
+
+        // Format the data
+        $data = $reports->map(function ($report) {
+            return [
+                'id' => $report->student_id, // number of this time
+                'sno' => $report->student->sno ?? null,
+                'name' => $report->student->name ?? null,
+                'date' => $report->updated_at ? $report->updated_at->format('Y-m-d') : null,
+            ];
+        });
+
+        return response()->json($data);
     }
 }

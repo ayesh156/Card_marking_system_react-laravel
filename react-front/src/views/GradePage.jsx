@@ -61,7 +61,7 @@ const GradePage = () => {
         setLoading(true);
         try {
             const response = await axiosClient.get(`/reports/${currentGrade}`);
-
+            // console.log( response.data); 
             // Filter children based on selectedClass and true values
             const filteredChildren = response.data.filter((child) => {
                 if (selectedClass === "M" && child.maths) return true; // Show if maths is true and selectedClass is "M"
@@ -70,11 +70,8 @@ const GradePage = () => {
                 return false; // Exclude all other cases
             });
 
-            // Further filter to include only children with status: true
-            const activeChildren = filteredChildren.filter((child) => child.status === true);
-
-            setChildren(activeChildren); // Set only active children in the state
-            setFilteredChildren(activeChildren); // Initialize filteredChildren with active children
+            setChildren(filteredChildren); // Set only active children in the state
+            setFilteredChildren(filteredChildren); // Initialize filteredChildren with active children
             // console.log(activeChildren);
 
         } catch (error) {
@@ -172,7 +169,7 @@ const GradePage = () => {
         setLoading(true); // Show loading state
         try {
             // Send delete request to the backend
-            await axiosClient.put(`/status/${childId}`);
+            await axiosClient.put(`/status/${childId}`, {selectedClass});
             ToastNotification("Record deleted successfully!", "success", themeMode);
 
             // Remove the deleted child from the `children` state

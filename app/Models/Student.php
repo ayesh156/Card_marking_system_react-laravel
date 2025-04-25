@@ -24,7 +24,6 @@ class Student extends Model
         'english',
         'scholarship',
         'grade',
-        'status',
     ];
 
     /**

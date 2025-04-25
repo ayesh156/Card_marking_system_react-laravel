@@ -27,7 +27,6 @@ return new class extends Migration
             $table->boolean('english')->default(false); // Boolean column for english
             $table->boolean('scholarship')->default(false); // Boolean column for scholarship
             $table->string('grade', 1)->nullable(); // Grade column with a maximum length of 1
-            $table->boolean('status')->default(true); // Add status column with default value true
             $table->timestamps();
         });
     }

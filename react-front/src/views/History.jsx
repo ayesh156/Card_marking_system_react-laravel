@@ -16,6 +16,9 @@ import Cookies from "js-cookie";
 import CircularProgress, {
     circularProgressClasses,
 } from '@mui/material/CircularProgress';
+import jsPDF from "jspdf";
+import autoTable from 'jspdf-autotable';
+
 
 // Custom Circular Progress
 function FacebookCircularProgress(props) {
@@ -75,6 +78,7 @@ const GradePage = () => {
     const [year, setYear] = useState('');
     const [years, setYears] = useState([]); // State to store years
     const [months, setMonths] = useState([]);
+    const [tableDayHeaders, setDableDayHeaders] = useState([]);
 
     // Function to determine which grades to show based on selectedClass
     const getGradeItems = () => {
@@ -190,9 +194,10 @@ const GradePage = () => {
                 },
             });
 
+            const { students, dayHeaders } = response.data;
 
             // Filter the response data
-            const filteredData = response.data.filter((child) => {
+            const filteredData = students.filter((child) => {
                 const weeksTrueCount = [
                     child.week1,
                     child.week2,
@@ -211,12 +216,115 @@ const GradePage = () => {
 
             // Update the state with the filtered data
             setChildren(filteredData);
+            // console.log(filteredData);
             setFilteredChildren(filteredData);
+            setDableDayHeaders(dayHeaders); // Store the calculated day headers
+            // console.log(dayHeaders);
         } catch (error) {
             ToastNotification(`Error fetching reports: ${error}`, "error", themeMode);
             console.error("Error fetching reports:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Add this function inside your component
+    // Modified handlePrintReport function with error handling
+    const handlePrintReport = () => {
+        try {
+            // Check if filteredChildren exists and has data
+            if (!filteredChildren || filteredChildren.length === 0) {
+                console.error("No student data available");
+                return;
+            }
+
+            const doc = new jsPDF();
+
+            // Set font to Helvetica
+            doc.setFont("times");
+
+             // Add outer frame
+        doc.setLineWidth(0.2); // Outer frame line thickness
+        doc.rect(7, 7, doc.internal.pageSize.width - 14, doc.internal.pageSize.height - 14); // Outer frame
+
+
+            // Title styling
+            doc.setFontSize(20);
+            doc.setFont("times", "bold");
+            doc.text(grade === "P" ? "Primary" : `Grade ${grade}`, doc.internal.pageSize.width / 2, 20, { align: "center" });
+
+            // Find the month name using the selected month ID
+            const selectedMonth = months.find((m) => m.value == parseInt(month));
+            const monthName = selectedMonth ? selectedMonth.name : "Unknown";
+
+            // Subtitle with month and year
+            doc.setFontSize(16);
+            doc.text(`Theory Class ${monthName} - ${year}`, doc.internal.pageSize.width / 2, 30, { align: "center" });
+
+            // Create dynamic table headers
+            const headers = [
+                { content: '', styles: { halign: 'center' } },
+                { content: 'Name', styles: { halign: 'center' } },
+                ...tableDayHeaders.map((day) => ({ content: day, styles: { halign: 'center' } })),
+            ];
+
+            // Prepare student data
+            // Prepare student data
+            const tableData = filteredChildren.map((student, index) => {
+                // Parse the student's created_at date
+                const createdAt = new Date(student.created_at);
+
+                // Check each week's attendance and compare with the created_at date
+                return [
+                    { content: (index + 1).toString().padStart(2, '0'), styles: { halign: 'center' } },
+                    { content: student.child_name, styles: { halign: 'left' } },
+                    { content: createdAt > new Date(year, month - 1, 7) ? '-' : (student.week1 ? '1' : '0'), styles: { halign: 'center' } },
+                    { content: createdAt > new Date(year, month - 1, 14) ? '-' : (student.week2 ? '1' : '0'), styles: { halign: 'center' } },
+                    { content: createdAt > new Date(year, month - 1, 21) ? '-' : (student.week3 ? '1' : '0'), styles: { halign: 'center' } },
+                    { content: createdAt > new Date(year, month - 1, 28) ? '-' : (student.week4 ? '1' : '0'), styles: { halign: 'center' } },
+                    { content: createdAt > new Date(year, month - 1, 35) ? '-' : (student.week5 ? '1' : '0'), styles: { halign: 'center' } },
+                ];
+            });
+
+            // Draw the table
+            autoTable(doc, {
+                head: [headers],
+                body: tableData,
+                startY: 40,
+                theme: 'grid',
+                styles: {
+                    font: 'times',
+                    fontSize: 10,
+                    cellPadding: 2.5,
+                    lineWidth: 0.5,
+                },
+                headStyles: {
+                    fillColor: [255, 255, 255],
+                    textColor: [0, 0, 0],
+                    fontStyle: 'bold',
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.2,
+                },
+                bodyStyles: {
+                    fillColor: [255, 255, 255],
+                    textColor: [0, 0, 0],
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.2,
+                },
+                columnStyles: {
+                    0: { cellWidth: 15 },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 25 },
+                    3: { cellWidth: 25 },
+                    4: { cellWidth: 25 },
+                },
+                tableWidth: 'auto',
+                margin: { left: 30, right: 30 },
+            });
+
+            doc.save(`Grade_${grade}_Attendance_${month}_${year}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
         }
     };
 
@@ -344,26 +452,69 @@ const GradePage = () => {
         },
     ];
 
-      if (isPageLoading) {
-                return (
-                    <Box
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        height="100vh"
-                    >
-                        {/* Use the custom circular progress */}
-                        <FacebookCircularProgress />
-                    </Box>
-                );
-            }
+    if (isPageLoading) {
+        return (
+            <Box
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                height="100vh"
+            >
+                {/* Use the custom circular progress */}
+                <FacebookCircularProgress />
+            </Box>
+        );
+    }
 
     return (
         <Box m="20px">
-            <Header
-                title="History"
-                subtitle="Effortlessly Navigate History with Our Intuitive Interface.."
-            />
+            <Box
+                sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: { xs: "flex-start", md: "center" }, // Align items vertically centered in desktop, top in mobile
+                    flexDirection: { xs: "column", md: "row" }, // Stack vertically in mobile, row in desktop
+                    gap: { xs: 1, md: 0 }, // Add gap in mobile view for spacing between Header and Button
+                    mb: 2,
+                }}
+            >
+                <Header
+                    title="History"
+                    subtitle="Effortlessly Navigate History with Our Intuitive Interface.."
+                />
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "flex-end", // Always align button to the right
+                        width: { xs: "100%", md: "auto" }, // Full width in mobile, auto in desktop
+                    }}
+                >
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handlePrintReport}
+                        sx={{
+                            textTransform: "none",
+                            backgroundColor: colors.greenAccent[700],
+                            color: colors.grey[100],
+                            fontSize: "17px",
+                            paddingX: "25px",
+                            height: "50px",
+                            fontWeight: "500",
+                            "&:hover": {
+                                backgroundColor: colors.greenAccent[800],
+                            },
+                            "@media (max-width: 767px)": {
+                                fontSize: "14px",
+                                paddingX: "20px",
+                                height: "40px",
+                            },
+                        }}
+                    >
+                        Print Report
+                    </Button>
+                </Box>
+            </Box>
 
             <Box
                 sx={{

@@ -8,10 +8,18 @@ use App\Http\Controllers\ClassesController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentReportController;
 use App\Http\Controllers\UserController;
+use App\Models\Classes;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+Route::get('/dashboard-stats', [StudentReportController::class, 'dashboardStats']);
+Route::get('/monthly-attendance-stats', [StudentReportController::class, 'monthlyAttendanceStats']);
+Route::get('/classes-count', function () {
+    return response()->json(['count' => Classes::count()]);
+});
+Route::get('/recent-payments', [StudentReportController::class, 'recentPayments']);
 
 Route::put('/users/{email}', [UserController::class, 'update']);
 Route::get('/users/{email}', [UserController::class, 'show']);
