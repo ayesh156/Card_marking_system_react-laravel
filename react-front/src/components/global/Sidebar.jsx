@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { tokens } from "../../theme";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import ListIcon from '@mui/icons-material/List';
@@ -26,7 +27,19 @@ const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
             style={{
                 color: colors.grey[100],
             }}
-            onClick={onClick}
+            onClick={() => {
+                if (onClick) onClick();
+                setSelected(title);
+
+                // Set the grade cookie based on the title
+                if (title === "Primary") {
+                    Cookies.set("grade", "P"); // Set "P" for Primary
+                } else if (title.startsWith("Grade")) {
+                    const gradeNumber = title.replace("Grade", ""); // Extract the grade number
+                    Cookies.set("grade", gradeNumber); // Set the grade number
+
+                }
+            }}
             icon={icon}
         >
             <Typography>{title}</Typography>
@@ -42,27 +55,22 @@ const Sidebar = () => {
     const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 767);
     const [selected, setSelected] = useState("Dashboard");
     const [selectedClass, setSelectedClass] = useState(null);
-    const hasGradeSet = useRef(false); 
+    const hasGradeSet = useRef(false);
 
     useEffect(() => {
         const storedClass = Cookies.get("selectedClass"); // Get the selected class from cookies
         setSelectedClass(storedClass);
 
-        const grade = Cookies.get("grade"); // Get the grade from cookies
         const pathName = location.pathname.split("/")[1]; // Get the first part of the path
 
-        // Check if the path is one of the specific paths
-        if (["", "settings", "history", "message"].includes(pathName)) {
-            // Use the pathname to set the selected state
-            setSelected(pathName === "" ? "Dashboard" : pathName.charAt(0).toUpperCase() + pathName.slice(1));
-        } else if (grade) {
-            // Use the grade value from cookies for other paths
-            setSelected(grade === "P" ? "Primary" : `Grade${grade}`);
+        if (pathName) {
+            // Capitalize the first letter of the pathName
+            const capitalizedPathName = pathName.charAt(0).toUpperCase() + pathName.slice(1);
+            setSelected(capitalizedPathName); // Set the selected state
+        } else {
+            setSelected("Dashboard"); // Default to "Dashboard" if pathName is empty
         }
-
     }, [location]);
-
-
 
     // Function to handle window resize
     useEffect(() => {
@@ -120,9 +128,9 @@ const Sidebar = () => {
 
     const gradeItems = getGradeItems();
 
-     // Refresh the page only once when gradeItems are set
-     useEffect(() => {
-        if(hasGradeSet.current){
+    // Refresh the page only once when gradeItems are set
+    useEffect(() => {
+        if (hasGradeSet.current) {
             window.location.reload(); // Reload the page
         }
     }, [hasGradeSet]);
@@ -166,7 +174,7 @@ const Sidebar = () => {
                                 alignItems="center"
                             >
                                 <IconButton onClick={() => setIsCollapsed(!isCollapsed)}>
-                                    <MenuOutlinedIcon />
+                                    {isCollapsed ? <MenuOutlinedIcon /> : <CloseOutlinedIcon />} {/* Change icon based on collapse state */}
                                 </IconButton>
                             </Box>
                         )}

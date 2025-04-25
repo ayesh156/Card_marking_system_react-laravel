@@ -5,14 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Child extends Model
+class Student extends Model
 {
     use HasFactory;
-    
-    // Enable timestamps (default behavior)
-    public $timestamps = true;
-
-    protected $table = 'child';
 
     protected $fillable = [
         'sno',
@@ -20,15 +15,24 @@ class Child extends Model
         'address1',
         'address2',
         'school',
-        'gName',
-        'gMobile',
-        'gWhatsapp',
+        'g_name',
+        'g_mobile',
+        'g_whatsapp',
         'gender',
         'dob',
+        'maths',
+        'english',
+        'scholarship',
+        'grade',
+        'status',
     ];
 
+    /**
+     * Define the relationship with the StudentReport model.
+     */
     public function reports()
     {
-        return $this->hasMany(ChildReport::class, 'child_id');
+        return $this->hasMany(StudentReport::class, 'student_id');
     }
+
 }

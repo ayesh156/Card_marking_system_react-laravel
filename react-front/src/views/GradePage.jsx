@@ -3,7 +3,7 @@ import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { Checkbox, useTheme, Box, Button, IconButton, InputBase, Typography, TextField } from "@mui/material";
 import { tokens } from "../theme";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { toast, ToastContainer } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import axiosClient from "../../axios-client.js";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Header from "../components/Header.jsx";
@@ -12,10 +12,14 @@ import SendIcon from "@mui/icons-material/Send";
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import ToastNotification from "../components/ToastNotification.jsx";
 import { data } from "../data/mockData.js";
+import Cookies from "js-cookie";
 
 const GradePage = () => {
-    const [children, setChildren] = useState(data); // List of children
+    const [children, setChildren] = useState([]); // List of children
+    const [filteredChildren, setFilteredChildren] = useState([]); // Filtered list for search
+    const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(false); // Loading state
+    const [selectedClass, setSelectedClass] = useState(null); // State to store selectedClass
     const theme = useTheme();
     const colors = tokens(theme.palette.mode);
     const [sendBtnLoading, setSendBtnLoading] = useState(false);
@@ -24,28 +28,55 @@ const GradePage = () => {
     const themeMode = theme.palette.mode === "dark" ? "dark" : "light";
     const [gradeTitle, setGradeTitle] = useState("Primary");
     const [currentDate, setCurrentDate] = useState("");
+    const [grade, setGrade] = useState(null);
+    const [message, setMessage] = useState(""); // State to manage the TextField value
 
 
     // Set the header title based on the location path name
     useEffect(() => {
         const pathName = location.pathname.split("/")[1]; // Get the part after "/"
-        if (pathName && /^grade\d+$/i.test(pathName)) {
-            // If pathName starts with "grade" (case-insensitive) followed by a number, add a space
+        let newGrade = null;
+
+        if (pathName === "primary") {
+            newGrade = "P";
+            setGrade("P"); // Set grade to "P" for Primary
+        } else if (pathName.startsWith("grade")) {
+            const gradeNumber = pathName.replace("grade", ""); // Extract the grade number
+            newGrade = gradeNumber;
+            setGrade(gradeNumber); // Set grade to the last character (grade number)
+        }
+
+        // Set the grade title for display
+        if (pathName === "primary") {
+            setGradeTitle("Primary");
+        } else if (pathName.startsWith("grade")) {
             const formattedTitle = pathName.replace(/grade(\d+)/i, "Grade $1");
             setGradeTitle(formattedTitle);
-        } else {
-            // Default behavior
-            setGradeTitle(pathName.charAt(0).toUpperCase() + pathName.slice(1));
         }
+
+        fetchChildren(newGrade);
     }, [location]);
 
-
-    const fetchChildren = async () => {
+    const fetchChildren = async (currentGrade) => {
         setLoading(true);
         try {
-            const response = await axiosClient.get("/child_reports");
-            // setChildren(response.data);
-            // console.log(response.data);
+            const response = await axiosClient.get(`/reports/${currentGrade}`);
+
+            // Filter children based on selectedClass and true values
+            const filteredChildren = response.data.filter((child) => {
+                if (selectedClass === "M" && child.maths) return true; // Show if maths is true and selectedClass is "M"
+                if (selectedClass === "E" && child.english) return true; // Show if english is true and selectedClass is "E"
+                if (selectedClass === "S" && child.scholarship) return true; // Show if scholarship is true and selectedClass is "S"
+                return false; // Exclude all other cases
+            });
+
+            // Further filter to include only children with status: true
+            const activeChildren = filteredChildren.filter((child) => child.status === true);
+
+            setChildren(activeChildren); // Set only active children in the state
+            setFilteredChildren(activeChildren); // Initialize filteredChildren with active children
+            // console.log(activeChildren);
+
         } catch (error) {
             ToastNotification(`Error fetching children: ${error}`, "error", themeMode);
             console.error("Error fetching children:", error);
@@ -54,7 +85,7 @@ const GradePage = () => {
         }
     };
 
-    // Fetch children data
+    // Fetch current date for display
     useEffect(() => {
         const date = new Date();
         const options = { month: "long" };
@@ -62,9 +93,17 @@ const GradePage = () => {
         const year = date.getFullYear();
         setCurrentDate(`${year} ${month}`);
 
-        fetchChildren();
+
+        const storedClass = Cookies.get("selectedClass"); // Retrieve selectedClass from cookies
+        setSelectedClass(storedClass || null); // Set it in state or default to null
     }, []);
 
+    // Fetch children data whenever the grade value is updated
+    useEffect(() => {
+        if (grade) {
+            fetchChildren(grade);
+        }
+    }, [grade]); // Trigger this effect whenever the grade changes
 
     // Handle checkbox change for weeks (Auto-send update)
     const handleWeekCheckboxChange = async (childId, week) => {
@@ -73,7 +112,7 @@ const GradePage = () => {
 
         // Retrieve the `sno` of the child
         const child = children.find((child) => child.child_id === childId);
-        const sno = child?.sno || "Unknown"; // Fallback to "Unknown" if `sno` is not found
+        const sno = child?.sno || "Unknown"; // Fallback to "Unknown" if `sno` is not found        
 
         // Update the `children` state locally
         const updatedChildren = children.map((child) => {
@@ -87,17 +126,21 @@ const GradePage = () => {
         });
 
         setChildren(updatedChildren); // Update the state to re-render the table
+        setFilteredChildren(updatedChildren);
 
         setLoading(true);
 
         // Send updated data to the backend
         try {
-            await axiosClient.post("/save_report", {
+            await axiosClient.post("/reports", {
                 child_id: childId,
+                class: selectedClass,
+                grade,
                 weeks: {
                     [week]: updatedChildren.find((child) => child.child_id === childId)[week],
                 },
             });
+
 
             // Show warning toast only if the checkbox was unchecked
             if (isUnchecked) {
@@ -129,11 +172,20 @@ const GradePage = () => {
         setLoading(true); // Show loading state
         try {
             // Send delete request to the backend
-            await axiosClient.delete(`/children/${childId}`);
+            await axiosClient.put(`/status/${childId}`);
             ToastNotification("Record deleted successfully!", "success", themeMode);
 
-            // Reload the table by refetching the data
-            fetchChildren();
+            // Remove the deleted child from the `children` state
+            const updatedChildren = children.filter((child) => child.child_id !== childId);
+            setChildren(updatedChildren);
+
+            // Reapply the search filter to update `filteredChildren`
+            const filtered = updatedChildren.filter((child) =>
+                child.sno.toString().toLowerCase().includes(searchQuery) ||
+                child.child_name.toLowerCase().includes(searchQuery) ||
+                child.gWhatsapp.toLowerCase().includes(searchQuery)
+            );
+            setFilteredChildren(filtered);
         } catch (error) {
             ToastNotification(`Error deleting record: ${error}`, "error", themeMode);
             console.error("Error deleting record:", error);
@@ -144,6 +196,20 @@ const GradePage = () => {
 
 
     const currentWeek = getCurrentWeek();
+
+    // Handle search input change
+    const handleSearchChange = (event) => {
+        const query = event.target.value.toLowerCase();
+        setSearchQuery(query);
+
+        // Filter children based on search query
+        const filtered = children.filter((child) =>
+            child.sno.toString().toLowerCase().includes(query) ||
+            child.child_name.toLowerCase().includes(query) ||
+            child.gWhatsapp.toLowerCase().includes(query)
+        );
+        setFilteredChildren(filtered);
+    };
 
     // Handle checkbox change for paid status (Auto-send update)
     const handlePaidCheckboxChange = async (childId) => {
@@ -166,13 +232,16 @@ const GradePage = () => {
         });
 
         setChildren(updatedChildren); // Update the state to re-render the table
+        setFilteredChildren(updatedChildren);
 
         setLoading(true);
 
         // Send updated paid status to the backend
         try {
-            await axiosClient.post("/update_paid_status", {
+            await axiosClient.post("/paid", {
                 child_id: childId,
+                class: selectedClass,
+                grade,
                 paid: updatedChildren.find((child) => child.child_id === childId).paid,
             });
 
@@ -189,6 +258,15 @@ const GradePage = () => {
 
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSendAll = () => {
+        if (message.trim() !== "") { // Only proceed if the message is not empty
+            console.log("Message sent:", message); // Print the message to the console
+            // Add any additional logic here, such as sending the message to the backend
+        } else {
+            console.log("Message is empty. Please enter a message."); // Optional: Log a warning or show a toast
         }
     };
 
@@ -316,9 +394,9 @@ const GradePage = () => {
                     checked={params.row.paid}
                     onChange={() => handlePaidCheckboxChange(params.row.child_id)}
                     sx={{
-                        color: "#F1C40F", // Unchecked color
+                        color: params.row.notpaid ? "#E74C3C" : "#F1C40F", // Red if notpaid is true, yellow otherwise
                         "&.Mui-checked": {
-                            color: "#e3bc22", // Checked color
+                            color: params.row.notpaid ? "#E74C3C" : "#e3bc22", // Red if notpaid is true, yellow otherwise
                         },
                     }}
                 />
@@ -432,11 +510,22 @@ const GradePage = () => {
                                 p: 1,
                             },
                         }}
+                        value={searchQuery}
+                        onChange={handleSearchChange}
                         placeholder="Search by No. or Name"
                     />
 
-                    <IconButton type="button" sx={{ p: 1 }}>
-                        <SearchIcon />
+                    <IconButton
+                        type="button"
+                        sx={{ p: 2 }}
+                        onClick={() => {
+                            if (searchQuery) { // Only call the function if there is a value
+                                setSearchQuery(""); // Clear the search query
+                                setFilteredChildren(children); // Reset the filtered children to the full list
+                            }
+                        }}
+                    >
+                        {searchQuery ? <RefreshOutlinedIcon /> : <SearchIcon />} {/* Show Refresh icon if there's text */}
                     </IconButton>
 
                 </Box>
@@ -473,7 +562,7 @@ const GradePage = () => {
             >
                 <ToastContainer />
                 <DataGrid
-                    rows={children} // Use the formatted data
+                    rows={filteredChildren} // Use the formatted data
                     columns={columns}
                     loading={loading}
                     slotProps={{
@@ -505,11 +594,13 @@ const GradePage = () => {
                 }}
             >
                 <TextField
-                    label="Invoice Notes"
+                    label="Enter your message"
                     multiline
                     rows={5}
                     fullWidth
                     color="secondary"
+                    value={message} // Bind the TextField value to the state
+                    onChange={(e) => setMessage(e.target.value)} // Update the state on change
                     sx={{
                         width: "60%", backgroundColor: colors.primary[400], "@media (max-width: 767px)": {
                             width: "100%"
@@ -529,7 +620,8 @@ const GradePage = () => {
                     <Button
                         endIcon={<RefreshOutlinedIcon />}
                         variant="contained"
-                        type="submit"
+                        type="button"
+                        onClick={() => setMessage("")} // Clear the TextField value
                         sx={{
                             gridColumn: "span 4",
                             width: "120px",
@@ -557,7 +649,8 @@ const GradePage = () => {
                         loadingPosition="end"
                         endIcon={<SendIcon />}
                         variant="contained"
-                        type="submit"
+                        type="button"
+                        onClick={handleSendAll}
                         sx={{
                             gridColumn: "span 4",
                             width: "150px",

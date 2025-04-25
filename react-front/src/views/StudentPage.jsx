@@ -8,7 +8,8 @@ import {
     FormLabel,
     FormControlLabel,
     RadioGroup,
-    Radio
+    Radio,
+    Autocomplete
 } from "@mui/material";
 import dayjs from "dayjs";
 import { Formik } from "formik";
@@ -17,8 +18,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import KeyboardArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardArrowLeftOutlined";
 import { tokens } from "../theme.js";
 import SaveIcon from "@mui/icons-material/Save";
-import * as yup from "yup";;
-import Loader from "../components/Loader.jsx";
+import * as yup from "yup";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -29,9 +29,12 @@ import axiosClient from "../../axios-client.js";
 import ToastNotification from "../components/ToastNotification.jsx";
 import CircularProgress, {
     circularProgressClasses,
-  } from '@mui/material/CircularProgress';
+} from '@mui/material/CircularProgress';
 import { student } from "../data/mockData.js";
-  
+import Cookies from "js-cookie";
+import debounce from "lodash/debounce";
+
+
 
 const phoneRegExp = /^[0-9]{10}$/; // Adjusted for 10-digit phone numbers
 
@@ -97,8 +100,7 @@ const New_Customer = () => {
     const colors = tokens(theme.palette.mode);
     const isNonMobile = useMediaQuery("(min-width:800px)");
     const [isLoading, setIsLoading] = useState(false);
-    const [isPageLoading, setIsPageLoading] = useState(false); // Track loading state
-    const [initialValuesSet, setInitialValuesSet] = useState(true);
+    const [isPageLoading, setIsPageLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation(); // Access the passed state
     const [initialFormValues, setInitialFormValues] = useState({
@@ -115,13 +117,44 @@ const New_Customer = () => {
     });
     // Extract the grade or primary from the URL
     const [pageTitle, setPageTitle] = useState("");
-
+    const [buttonText, setButtonText] = useState("Save");
     const themeMode = theme.palette.mode === "dark" ? "dark" : "light";
 
     const childId = location.state?.child; // Get the child_id from the state
 
     // Determine if this is an update or a new customer
     const isUpdate = Boolean(childId);
+
+    // State for autocomplete suggestions
+    const [suggestions, setSuggestions] = useState([]);
+    const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+
+    // ... (useEffect for pageTitle and fetching student data remains unchanged)
+
+    // Debounced function to fetch suggestions
+    const fetchSuggestions = useCallback(
+        debounce(async (input) => {
+            if (!input || input.length < 2) {
+                setSuggestions([]);
+                return;
+            }
+            setIsFetchingSuggestions(true);
+            try {
+                const response = await axiosClient.get(`/students/search`, {
+                    params: { name: input },
+                });
+                setSuggestions(response.data || []);
+                // console.log(response);
+            } catch (error) {
+                console.error("Error fetching suggestions:", error);
+                ToastNotification("Failed to fetch suggestions", "error", themeMode);
+                setSuggestions([]);
+            } finally {
+                setIsFetchingSuggestions(false);
+            }
+        }, 300),
+        [themeMode]
+    );
 
     useEffect(() => {
         const pathName = location.pathname.split("/")[1]; // Get the part after "/"
@@ -140,75 +173,113 @@ const New_Customer = () => {
 
             // Fetch data from the mockdata for the given child_id
             setIsPageLoading(true);
-            
-            const studentData = student.find((item) => item.id === childId); // Find the object by id
-            if (studentData) {
-                setInitialFormValues({
-                    sno: studentData.sno || "",
-                    name: studentData.name || "",
-                    dob: studentData.dob || null,
-                    address1: studentData.address1 || "",
-                    address2: studentData.address2 || "",
-                    school: studentData.school || "",
-                    gName: studentData.gName || "",
-                    gMobile: studentData.gMobile || "",
-                    gWhatsapp: studentData.gWhatsapp || "",
-                    gender: studentData.gender || "female",
-                });
-                setIsPageLoading(false);
-            } else {
-                console.error("Student not found");
-            }
+
+            // const studentData = student.find((item) => item.id === childId); // Find the object by id
+            // if (studentData) {
+            //     setInitialFormValues({
+            //         sno: studentData.sno || "",
+            //         name: studentData.name || "",
+            //         dob: studentData.dob || null,
+            //         address1: studentData.address1 || "",
+            //         address2: studentData.address2 || "",
+            //         school: studentData.school || "",
+            //         gName: studentData.gName || "",
+            //         gMobile: studentData.gMobile || "",
+            //         gWhatsapp: studentData.gWhatsapp || "",
+            //         gender: studentData.gender || "female",
+            //     });
+            //     setIsPageLoading(false);
+            // } else {
+            //     console.error("Student not found");
+            // }
 
             // Backend
-            
-            // axiosClient
-            //     .get(`/children/${childId}`) // Replace with your backend endpoint                
-            //     .then(({ data }) => {
-            //         setInitialFormValues({
-            //             sno: data.sno || "",
-            //             name: data.name || "",
-            //             dob: data.dob || null,
-            //             address1: data.address1 || "",
-            //             address2: data.address2 || "",
-            //             school: data.school || "",
-            //             gName: data.gName || "",
-            //             gMobile: data.gMobile || "",
-            //             gWhatsapp: data.gWhatsapp || "",
-            //             gender: data.gender || "female",
-            //         });
-            //         console.log(data);
-            //     })
-            //     .catch((error) => {
-            //         ToastNotification("Failed to fetch student data", "error", theme.palette.mode);
-            //         console.error("Error fetching student data:", error);
-            //     })
-            //     .finally(() => {
-            //         setIsPageLoading(false);
-            //     });
+
+            axiosClient
+                .get(`/student/${childId}`) // Replace with your backend endpoint                
+                .then(({ data }) => {
+                    setInitialFormValues({
+                        sno: data.sno || "",
+                        name: data.name || "",
+                        dob: data.dob || null,
+                        address1: data.address1 || "",
+                        address2: data.address2 || "",
+                        school: data.school || "",
+                        gName: data.g_name || "",
+                        gMobile: data.g_mobile || "",
+                        gWhatsapp: data.g_whatsapp || "",
+                        gender: data.gender || "female",
+                    });
+                    console.log(data);
+                })
+                .catch((error) => {
+                    ToastNotification("Failed to fetch student data", "error", theme.palette.mode);
+                    console.error("Error fetching student data:", error);
+                })
+                .finally(() => {
+                    setIsPageLoading(false);
+                });
         }
     }, [childId]);
-   
+
 
     const handleFormSubmit = async (values, { resetForm }) => {
         setIsLoading(true);
         // console.log(dataToSend);
+
+        // Retrieve the selectedClass cookie value
+        const selectedClass = Cookies.get("selectedClass");
+        const grade = Cookies.get("grade");
+
+        // Dynamically set maths, english, and scholarship based on selectedClass
+        let maths = false;
+        let english = false;
+        let scholarship = false;
+
+        if (selectedClass === "E") {
+            maths = false; // Enable maths for "E"
+            english = true; // Enable english for "E"
+            scholarship = false; // Disable scholarship for "E"
+        } else if (selectedClass === "M") {
+            maths = true; // Enable maths for "M"
+            english = false; // Disable english for "M"
+            scholarship = false; // Enable scholarship for "M"
+        } else if (selectedClass === "S") {
+            maths = false; // Disable maths for "S"
+            english = false; // Enable english for "S"
+            scholarship = true; // Enable scholarship for "S"
+        }
+
+        const payload = {
+            ...values,
+            g_name: values.gName || "", // Map gName to g_name
+            g_mobile: values.gMobile || "", // Map gMobile to g_mobile
+            g_whatsapp: values.gWhatsapp || "", // Map gWhatsapp to g_whatsapp
+            grade,
+            maths,
+            english,
+            scholarship,
+            status: true
+        };
+        // console.log(payload);
+
         try {
             if (isUpdate) {
                 // If updating, send a PUT request with the entire object
-                await axiosClient.put(`/children/${childId}`, values).then(({ data }) => {
-                    ToastNotification(data.message,"success", themeMode);
+                await axiosClient.put(`/student/${childId}`, payload).then(({ data }) => {
+                    ToastNotification(data.message, "success", themeMode);
                 });
             } else {
                 // If creating, send a POST request
-                await axiosClient.post("/children", values).then(({ data }) => {
-                    ToastNotification(data.message,"success", themeMode);
+
+                await axiosClient.post("/student", payload).then(({ data }) => {
+                    ToastNotification(data.message, "success", themeMode);
                     resetForm();
                 });
             }
         } catch (err) {
             const response = err.response;
-    
+
             if (response && response.data && response.data.message) {
                 // Show error message from API response
                 ToastNotification(response.data.message, "error", themeMode);
@@ -221,9 +292,9 @@ const New_Customer = () => {
         }
     };
 
-     // Show loader while data is being fetched
-    
-     if (isPageLoading) {
+    // Show loader while data is being fetched
+
+    if (isPageLoading) {
         return (
             <Box
                 display="flex"
@@ -235,10 +306,6 @@ const New_Customer = () => {
                 <FacebookCircularProgress />
             </Box>
         );
-    }
-
-    if (!initialValuesSet) {
-        return <Loader />;
     }
 
     return (
@@ -265,9 +332,24 @@ const New_Customer = () => {
                 initialValues={initialFormValues}
                 enableReinitialize
                 validationSchema={customerSchema}
-                onSubmit={handleFormSubmit}
+                onSubmit={async (values, { resetForm }) => {
+                    if (buttonText === "Enable") {
+                        // Handle enabling the student status
+                        try {
+                            await axiosClient.put(`/student/status/${values.sno}`, { status: true });
+                            ToastNotification("Student status updated successfully!", "success", themeMode);
+                            setButtonText("Save"); // Reset button text to "Save" after enabling
+                        } catch (error) {
+                            console.error("Error updating student status:", error);
+                            ToastNotification("Failed to update student status", "error", themeMode);
+                        }
+                    } else {
+                        // Handle normal save logic
+                        await handleFormSubmit(values, { resetForm });
+                    }
+                }}
             >
-                {({ values, errors, touched, handleBlur, handleChange, handleSubmit, resetForm, isValid }) => (
+                {({ values, errors, touched, handleBlur, handleChange, handleSubmit, resetForm, isValid, setFieldValue }) => (
                     <form onSubmit={handleSubmit}>
                         <Box
                             display="grid"
@@ -311,7 +393,9 @@ const New_Customer = () => {
                                     },
                                 }}
                             />
-                            <TextField
+
+
+                            {isUpdate ? (<TextField
                                 fullWidth
                                 variant="filled"
                                 type="text"
@@ -337,7 +421,84 @@ const New_Customer = () => {
                                         color: colors.primary[100],
                                     },
                                 }}
-                            />
+                            />) : (
+                                <Autocomplete
+                                    fullWidth
+                                    freeSolo
+                                    options={suggestions}
+                                    getOptionLabel={(option) => (typeof option === "string" ? option : option.name)}
+                                    onInputChange={(event, newInputValue) => {
+                                        setFieldValue("name", newInputValue);
+                                        fetchSuggestions(newInputValue);
+                                    }}
+                                    onChange={(event, newValue) => {
+                                        if (newValue) {
+                                            // If a suggestion is selected, update the necessary fields
+                                            setFieldValue("name", typeof newValue === "string" ? newValue : newValue.name);
+                                            setFieldValue("sno", newValue.sno || ""); // Update Student No
+                                            setFieldValue("dob", newValue.dob || ""); // Update Date of Birth
+                                            setFieldValue("address1", newValue.address1 || ""); // Update Address Line 1
+                                            setFieldValue("address2", newValue.address2 || ""); // Update Address Line 2
+                                            setFieldValue("school", newValue.school || ""); // Update School
+                                            setFieldValue("gName", newValue.g_name || ""); // Update Guardian's Name
+                                            setFieldValue("gMobile", newValue.g_mobile || ""); // Update Guardian's Mobile
+                                            setFieldValue("gWhatsapp", newValue.g_whatsapp || ""); // Update Guardian's WhatsApp
+                                            setFieldValue("gender", newValue.gender || "female"); // Update Gender
+                                            setButtonText("Enable");
+                                        }
+                                    }}
+                                    renderOption={(props, option) => {
+                                        const { key, ...rest } = props; // Extract the key from props
+                                        return (
+                                            <li key={key} {...rest}>
+                                                {option.name} (S.No: {option.sno})
+                                            </li>
+                                        );
+                                    }}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            variant="filled"
+                                            label="Name"
+                                            name="name"
+                                            onBlur={handleBlur}
+                                            error={touched.name && Boolean(errors.name)}
+                                            helperText={touched.name && errors.name}
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <>
+                                                        {isFetchingSuggestions ? (
+                                                            <CircularProgress color="inherit" size={20} />
+                                                        ) : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </>
+                                                ),
+                                            }}
+                                            sx={{
+                                                width: "100%",
+                                                "& .MuiInputBase-root": {
+                                                    backgroundColor: colors.primary[400],
+                                                },
+                                                "& .MuiInputBase-root.Mui-hovered": {
+                                                    backgroundColor: colors.primary[400],
+                                                },
+                                                "& .MuiInputBase-root.Mui-focused": {
+                                                    backgroundColor: colors.primary[400],
+                                                },
+                                                "& .MuiInputLabel-root.Mui-focused": {
+                                                    color: colors.primary[100],
+                                                },
+                                            }}
+                                        />
+                                    )}
+                                    sx={{
+                                        gridColumn: "span 4", // Ensure it spans 4 columns in the grid
+                                        width: "100%", // Explicitly set the width to 100%
+                                    }}
+                                />
+                            )}
+
                             <Box sx={{
                                 display: "flex", gap: "20px", marginTop: "10px", gridColumn: "span 4",
                                 width: "100%",      // Ensure it takes full width up to the max width
@@ -636,7 +797,7 @@ const New_Customer = () => {
                                     },
                                 }}
                             >
-                                {isUpdate ? "Update" : "Save"}
+                                {isUpdate ? "Update" : buttonText}
                             </Button>
                         </Box>
                     </form>

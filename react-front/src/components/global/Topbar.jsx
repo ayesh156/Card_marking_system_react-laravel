@@ -8,6 +8,9 @@ import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import Cookies from "js-cookie";
+import axiosClient from "../../../axios-client";
+
+const userEmail = "zynergyedu@gmail.com"; // Replace with actual user email
 
 const Topbar = () => {
   const theme = useTheme();
@@ -20,7 +23,20 @@ const Topbar = () => {
   useEffect(() => {
     const storedClass = Cookies.get("selectedClass"); // Get the selected class from cookies
     setSelectedClass(storedClass); // Set the selected class from cookies
+
+    fetchUserMode();
   }, []);
+
+  const fetchUserMode = async () => {
+    try {
+      const response = await axiosClient.get(`/mode/${userEmail}`);
+      const mode = response.data.mode === "L" ? "light" : "dark";
+      // console.log(mode);
+      colorMode.setMode(mode); // <-- set mode using context
+    } catch (error) {
+      colorMode.setMode("dark"); // fallback
+    } 
+  };
 
   // Map selectedClass to full class name
   const getClassName = (classCode) => {
@@ -33,6 +49,18 @@ const Topbar = () => {
         return "Mathematics";
       default:
         return null; // Return null if no matching class
+    }
+  };
+
+
+  // Handle theme toggle and save to backend
+  const handleThemeToggle = () => {
+    if (theme.palette.mode === "dark") {
+      colorMode.setMode("light");
+      axiosClient.put(`/mode/${userEmail}`, { mode: "L" });
+    } else {
+      colorMode.setMode("dark");
+      axiosClient.put(`/mode/${userEmail}`, { mode: "D" });
     }
   };
 
@@ -64,11 +92,11 @@ const Topbar = () => {
 
       {/* ICONS */}
       <Box display="flex" gap={2} justifyContent="center" mb={isSmallScreen ? 2 : 0}>
-        <IconButton onClick={colorMode.toggleColorMode}>
+        <IconButton onClick={handleThemeToggle}>
           {theme.palette.mode === "dark" ? (
-            <LightModeOutlinedIcon />
-          ) : (
             <DarkModeOutlinedIcon />
+          ) : (
+            <LightModeOutlinedIcon />
           )}
         </IconButton>
         <Link to="/history" style={{ textDecoration: "none" }}>
