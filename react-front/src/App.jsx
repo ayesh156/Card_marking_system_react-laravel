@@ -51,7 +51,7 @@ function App() {
     }, [authenticated, classSelected, selectedClass]);
 
     const handleLogin = () => {
-        Cookies.set("authenticated", true); 
+        Cookies.set("authenticated", true);
         setAuthenticated(true); // Set authenticated to true
         navigate("/"); // Navigate to the main app layout
     };
@@ -61,7 +61,7 @@ function App() {
         Cookies.set("selectedClass", className);
         setClassSelected(true);
         setSelectedClass(className);
-    
+
         setTimeout(() => {
             navigate("/"); // Navigate after a short delay
         }, 100); // 100ms delay
@@ -83,13 +83,10 @@ function App() {
                                         {/* Pass selectedClass to GradePage and StudentPage */}
                                         <Route path="/" element={<Dashboard />} />
 
-                                         {/* Loop for GradePage and StudentPage */}
-                                        {["primary", ...Array.from({ length: 11 }, (_, i) => `grade${i + 1}`)].map((path) => (
-                                            <Route key={path} path={`/${path}`} element={<GradePage />} />
-                                        ))}
-                                        {["primary", ...Array.from({ length: 11 }, (_, i) => `grade${i + 1}`)].map((path) => (
-                                            <Route key={`${path}/student`} path={`/${path}/student`} element={<StudentPage />} />
-                                        ))}
+                                        <Route path="/:gradePath" element={<GradePage />} />
+                                        
+                                        <Route  path={`/:gradePath/student`} element={<StudentPage />} />
+
 
                                         <Route path="/message" element={<Message />} />
                                         <Route path="/settings" element={<Settings />} />

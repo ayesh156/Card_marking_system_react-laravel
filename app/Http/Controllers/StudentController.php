@@ -19,23 +19,33 @@ class StudentController extends Controller
      */
     public function store(StudentRequest $request)
     {
+        // Create a new student entry in the students table
         $student = Student::create($request->validated());
+
+        // Add the student to the students_has_tuitions table with status = 1
+        $student->studentTuitions()->create([
+            'tuition_id' => $request->tuitionId, // Ensure tuitionId is passed in the request
+            'status' => 1, // Set status to 1
+        ]);
 
         return response()->json([
             'message' => 'Student created successfully!',
-            'student' => $student
+            'student' => $student,
         ], 201);
     }
 
     // Update an existing student
     public function update(StudentRequest $request, $id)
     {
-        $student = Student::findOrFail($id); // Find the student by ID
-        $student->update($request->validated()); // Update with validated data
+        // Find the student by ID
+        $student = Student::findOrFail($id);
+
+        // Update the student record in the students table
+        $student->update($request->validated());
 
         return response()->json([
             'message' => 'Student updated successfully!',
-            'student' => $student
+            'student' => $student,
         ], 200);
     }
 
@@ -46,35 +56,6 @@ class StudentController extends Controller
         return response()->json($student, 200); // Return as JSON
     }
 
-    // change status a student
-    public function status($id, Request $request)
-    {
-        // Validate the request
-        $request->validate([
-            'selectedClass' => 'required|string|in:M,E,S', // Validate selectedClass
-        ]);
-
-        // Find the student by ID
-        $student = Student::findOrFail($id);
-
-        // Update the corresponding column based on selectedClass
-        $selectedClass = $request->selectedClass;
-
-        if ($selectedClass === 'M') {
-            $student->maths = false; // Set maths to false
-        } elseif ($selectedClass === 'E') {
-            $student->english = false; // Set english to false
-        } elseif ($selectedClass === 'S') {
-            $student->scholarship = false; // Set scholarship to false
-        }
-
-        // Save the changes
-        $student->save();
-
-        return response()->json([
-            'message' => 'Student class updated successfully!',
-        ], 200);
-    }
 
     public function search(Request $request)
     {
@@ -83,35 +64,36 @@ class StudentController extends Controller
         return response()->json($students);
     }
 
-
     public function updateStatus($sno, Request $request)
     {
         // Validate the request
         $request->validate([
-            'selectedClass' => 'required|string|in:M,E,S', // Validate selectedClass
+            'tuitionId' => 'required|exists:tuitions,id', // Ensure tuitionId exists in the tuitions table
         ]);
-
+    
         // Find the student by sno
         $student = Student::where('sno', $sno)->first();
-
+    
         if (!$student) {
             return response()->json(['message' => 'Student not found'], 404);
         }
-
-        // Update the corresponding column based on selectedClass
-        $selectedClass = $request->selectedClass;
-
-        if ($selectedClass === 'M' && !$student->maths) {
-            $student->maths = true;
-        } elseif ($selectedClass === 'E' && !$student->english) {
-            $student->english = true;
-        } elseif ($selectedClass === 'S' && !$student->scholarship) {
-            $student->scholarship = true;
+    
+        // Check if a record exists in the students_has_tuitions table
+        $studentTuition = $student->studentTuitions()
+            ->where('tuition_id', $request->tuitionId)
+            ->first();
+    
+        if (!$studentTuition) {
+            // If no record exists, create a new one with status = 1
+            $student->studentTuitions()->create([
+                'tuition_id' => $request->tuitionId,
+                'status' => 1,
+            ]);
+        } elseif ($studentTuition->status === 0) {
+            // If a record exists and its status is 0, update the status to 1
+            $studentTuition->update(['status' => 1]);
         }
-
-        // Save the changes
-        $student->save();
-
-        return response()->json(['message' => 'Student status and class updated successfully!'], 200);
+    
+        return response()->json(['message' => 'Student status updated successfully!'], 200);
     }
 }

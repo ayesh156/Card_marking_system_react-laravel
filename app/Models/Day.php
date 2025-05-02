@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Days extends Model
+class Day extends Model
 {
     protected $fillable = [
         'day_name',
@@ -15,6 +15,6 @@ class Days extends Model
      */
     public function classes()
     {
-        return $this->hasMany(Classes::class, 'day_id');
+        return $this->hasMany(ClassModel::class, 'day_id');
     }
 }

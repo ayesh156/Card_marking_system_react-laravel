@@ -7,14 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Month extends Model
 {
-    use HasFactory;
 
+    protected $fillable = ['month']; // Specify the fillable fields
 
-    protected $fillable = ['name']; // Specify the fillable fields
-
-    // Define the relationship with the ChildReport model
-    public function childReports()
-    {
-        return $this->hasMany(ChildReport::class);
-    }
 }

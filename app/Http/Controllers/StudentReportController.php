@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Classes;
-use App\Models\Days;
+use App\Models\Category;
+use App\Models\ClassModel;
+use App\Models\Day;
+use App\Models\Grade;
 use App\Models\Month;
 use App\Models\Student;
 use App\Models\StudentReport;
+use App\Models\StudentTuition;
+use App\Models\Tuition;
 use App\Models\Year;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -30,7 +34,7 @@ class StudentReportController extends Controller
         $yearId = $yearRecord->id;
 
         // Check if month exists, if not, create it
-        $monthRecord = Month::firstOrCreate(['name' => $currentMonth]);
+        $monthRecord = Month::firstOrCreate(['month' => $currentMonth]);
         $monthId = $monthRecord->id;
 
         return [
@@ -42,13 +46,12 @@ class StudentReportController extends Controller
     }
 
 
-    public function store(Request $request)
+    public function weekStatus(Request $request)
     {
         // Validate incoming request data
         $request->validate([
             'child_id' => 'required|exists:students,id', // Ensure child_id exists in the students table
-            'class' => 'required|string', // Ensure class is provided as a string
-            'grade' => 'required|string', // Ensure grade is provided as a string
+            'tuition_id' => 'required|exists:tuitions,id', // Ensure tuition_id exists in the tuitions table
             'weeks' => 'required|array',
             'weeks.week1' => 'boolean',
             'weeks.week2' => 'boolean',
@@ -57,30 +60,8 @@ class StudentReportController extends Controller
             'weeks.week5' => 'boolean',
         ]);
 
-        // Find the class_id based on the class_name and grade in the classes table
-        $classRecord = Classes::where('class_name', $request->class)
-            ->where('grade', $request->grade)
-            ->first();
-
-        if (!$classRecord) {
-            // If not found, create a new class record
-            $today = Carbon::now()->format('l'); // Get today's day name (e.g., "Monday")
-            $dayRecord = Days::where('day_name', $today)->first();
-
-            if (!$dayRecord) {
-                return response()->json([
-                    'message' => 'Day not found in the days table.',
-                ], 404);
-            }
-
-            $classRecord = Classes::create([
-                'class_name' => $request->class,
-                'grade' => $request->grade,
-                'day_id' => $dayRecord->id, // Set the day_id based on today's day
-            ]);
-        }
-
-        $classId = $classRecord->id;
+        $studentId = $request->child_id;
+        $tuitionId = $request->tuition_id;
 
         // Get the current year_id and month_id
         $currentYearMonth = $this->getCurrentYearAndMonthId();
@@ -90,9 +71,9 @@ class StudentReportController extends Controller
         $yearId = $currentYearMonth['year_id'];
         $monthId = $currentYearMonth['month_id'];
 
-        // Check if a report for the same student, year, month, and class already exists
-        $existingReport = StudentReport::where('student_id', $request->child_id)
-            ->where('class_id', $classId)
+        // Check if a report for the same student, tuition, year, and month already exists
+        $existingReport = StudentReport::where('student_id', $studentId)
+            ->where('tuition_id', $tuitionId)
             ->where('year_id', $yearId)
             ->where('month_id', $monthId)
             ->first();
@@ -108,13 +89,13 @@ class StudentReportController extends Controller
 
             return response()->json([
                 'message' => 'Student report updated successfully!',
-                'data' => $existingReport
+                'data' => $existingReport,
             ], 200);
         } else {
             // Create a new report
             $childReport = StudentReport::create([
-                'student_id' => $request->child_id,
-                'class_id' => $classId,
+                'student_id' => $studentId,
+                'tuition_id' => $tuitionId,
                 'year_id' => $yearId,
                 'month_id' => $monthId,
                 'week1' => $request->weeks['week1'] ?? false,
@@ -126,45 +107,22 @@ class StudentReportController extends Controller
 
             return response()->json([
                 'message' => 'Student report created successfully!',
-                'data' => $childReport
+                'data' => $childReport,
             ], 201);
         }
     }
 
-    public function paid(Request $request)
+    public function paidStatus(Request $request)
     {
         // Validate incoming request data
         $request->validate([
             'child_id' => 'required|exists:students,id', // Ensure child_id exists in the students table
-            'class' => 'required|string', // Ensure class is provided as a string
-            'grade' => 'required|string', // Ensure grade is provided as a string
+            'tuition_id' => 'required|exists:tuitions,id', // Ensure tuition_id exists in the tuitions table
             'paid' => 'required|boolean', // Ensure paid status is provided and is a boolean
         ]);
 
-        // Find the class_id based on the class_name and grade in the classes table
-        $classRecord = Classes::where('class_name', $request->class)
-            ->where('grade', $request->grade)
-            ->first();
-
-        if (!$classRecord) {
-            // If not found, create a new class record
-            $today = Carbon::now()->format('l'); // Get today's day name (e.g., "Monday")
-            $dayRecord = Days::where('day_name', $today)->first();
-
-            if (!$dayRecord) {
-                return response()->json([
-                    'message' => 'Day not found in the days table.',
-                ], 404);
-            }
-
-            $classRecord = Classes::create([
-                'class_name' => $request->class,
-                'grade' => $request->grade,
-                'day_id' => $dayRecord->id, // Set the day_id based on today's day
-            ]);
-        }
-
-        $classId = $classRecord->id;
+        $studentId = $request->child_id;
+        $tuitionId = $request->tuition_id;
 
         // Get the current year_id and month_id
         $currentYearMonth = $this->getCurrentYearAndMonthId();
@@ -175,8 +133,8 @@ class StudentReportController extends Controller
         $monthId = $currentYearMonth['month_id'];
 
         // Find the existing child report
-        $childReport = StudentReport::where('student_id', $request->child_id)
-            ->where('class_id', $classId)
+        $childReport = StudentReport::where('student_id', $studentId)
+            ->where('tuition_id', $tuitionId)
             ->where('year_id', $yearId)
             ->where('month_id', $monthId)
             ->first();
@@ -184,8 +142,8 @@ class StudentReportController extends Controller
         if (!$childReport) {
             // If no report exists, create a new one
             $childReport = StudentReport::create([
-                'student_id' => $request->child_id,
-                'class_id' => $classId,
+                'student_id' => $studentId,
+                'tuition_id' => $tuitionId,
                 'year_id' => $yearId,
                 'month_id' => $monthId,
                 'paid' => $request->paid,
@@ -213,48 +171,195 @@ class StudentReportController extends Controller
         ], 200);
     }
 
-    public function reports($grade)
+    // public function reports($grade)
+    // {
+    //     // Get current year_id and month_id
+    //     $currentYearMonth = $this->getCurrentYearAndMonthId();
+    //     if (isset($currentYearMonth['message'])) {
+    //         return response()->json($currentYearMonth, 404);
+    //     }
+    //     $yearId = $currentYearMonth['year_id'];
+    //     $monthId = $currentYearMonth['month_id'];
+
+    //     // Calculate the previous month and handle year transitions
+    //     $previousMonthId = $monthId - 1;
+    //     $previousYearId = $yearId;
+
+    //     if ($previousMonthId < 1) {
+    //         $previousMonthId = 12; // Wrap around to December
+    //         $previousYearRecord = Year::where('id', '<', $yearId)->orderBy('id', 'desc')->first();
+    //         $previousYearId = $previousYearRecord ? $previousYearRecord->id : $yearId;
+    //     }
+
+    //     // Get current year in Asia/Colombo timezone
+    //     $colomboYear = Carbon::now('Asia/Colombo')->year;
+
+    //     // Fetch all students with their reports for the current year and month
+    //     $studentsQuery = Student::with(['reports' => function ($query) use ($yearId, $monthId) {
+    //         $query->where('year_id', $yearId)
+    //             ->where('month_id', $monthId);
+    //     }])->whereYear('created_at', $colomboYear);
+
+    //     // Filter by grade if provided
+    //     if ($grade) {
+    //         $studentsQuery->where('grade', $grade);
+    //     }
+
+    //     $students = $studentsQuery->get();
+
+    //     // Format the response
+    //     $formattedData = $students->map(function ($student) use ($previousYearId, $previousMonthId) {
+    //         $report = $student->reports->first(); // Get the report for the current year and month, if it exists
+
+    //         // Check if any of the specified fields are null
+    //         $fieldsToCheck = ['address1', 'school', 'g_name', 'g_mobile', 'gender', 'dob'];
+    //         $isRegistered = true;
+
+    //         foreach ($fieldsToCheck as $field) {
+    //             if (is_null($student->$field)) {
+    //                 $isRegistered = false;
+    //                 break;
+    //             }
+    //         }
+
+    //         // Check for previous month's attendance and payment status
+    //         $previousReport = StudentReport::where('student_id', $student->id)
+    //             ->where('year_id', $previousYearId)
+    //             ->where('month_id', $previousMonthId)
+    //             ->first();
+
+    //         $notPaidStatus = false;
+    //         if ($previousReport) {
+    //             $weeksTrueCount = [
+    //                 $previousReport->week1,
+    //                 $previousReport->week2,
+    //                 $previousReport->week3,
+    //                 $previousReport->week4,
+    //                 $previousReport->week5,
+    //             ];
+    //             // Count the number of truthy values (e.g., true, 1) in the weeks array
+    //             $weeksAttended = array_filter($weeksTrueCount, fn($week) => !empty($week));
+
+    //             // Set notPaidStatus to true if 2 or more weeks are attended and paid is false
+    //             if (count($weeksAttended) >= 2 && !$previousReport->paid) {
+    //                 $notPaidStatus = true;
+    //             }
+    //         }
+
+    //         return [
+    //             'child_id' => $student->id,
+    //             'child_name' => $student->name,
+    //             'sno' => $student->sno,
+    //             'gWhatsapp' => $student->g_whatsapp,
+    //             'week1' => boolval($report->week1 ?? false), // Cast to boolean
+    //             'week2' => boolval($report->week2 ?? false), // Cast to boolean
+    //             'week3' => boolval($report->week3 ?? false), // Cast to boolean
+    //             'week4' => boolval($report->week4 ?? false), // Cast to boolean
+    //             'week5' => boolval($report->week5 ?? false), // Cast to boolean
+    //             'paid' => boolval($report->paid ?? false),   // Cast to boolean
+    //             'register' => $isRegistered,                // Add register status
+    //             'maths' => boolval($student->maths),         // Get maths value from students table
+    //             'english' => boolval($student->english),     // Get english value from students table
+    //             'scholarship' => boolval($student->scholarship), // Get scholarship value from students table
+    //             'grade' => $student->grade,                 // Get grade value from students table
+    //             'status' => boolval($student->status),
+    //             'notpaid' => $notPaidStatus                 // Add notpaid status
+    //         ];
+    //     });
+
+    //     return response()->json($formattedData);
+    // }
+
+
+    public function fetchStudentData(Request $request)
     {
-        // Get current year_id and month_id
-        $currentYearMonth = $this->getCurrentYearAndMonthId();
-        if (isset($currentYearMonth['message'])) {
-            return response()->json($currentYearMonth, 404);
-        }
-        $yearId = $currentYearMonth['year_id'];
-        $monthId = $currentYearMonth['month_id'];
+        // Map class codes to their names
+        $classMap = [
+            'E' => 'English',
+            'S' => 'Scholarship',
+            'M' => 'Mathematics',
+        ];
 
-        // Calculate the previous month and handle year transitions
-        $previousMonthId = $monthId - 1;
-        $previousYearId = $yearId;
+        // Get the selected class from the request
+        $selectedClass = $request->input('selectedClass'); // 'E', 'S', or 'M'
 
-        if ($previousMonthId < 1) {
-            $previousMonthId = 12; // Wrap around to December
-            $previousYearRecord = Year::where('id', '<', $yearId)->orderBy('id', 'desc')->first();
-            $previousYearId = $previousYearRecord ? $previousYearRecord->id : $yearId;
+        // Validate the selected class
+        if (!array_key_exists($selectedClass, $classMap)) {
+            return response()->json(['error' => 'Invalid class selected'], 400);
         }
 
-        // Get current year in Asia/Colombo timezone
-        $colomboYear = Carbon::now('Asia/Colombo')->year;
+        $selectedClassName = $classMap[$selectedClass]; // Map the class code to its name
 
-        // Fetch all students with their reports for the current year and month
-        $studentsQuery = Student::with(['reports' => function ($query) use ($yearId, $monthId) {
-            $query->where('year_id', $yearId)
-                ->where('month_id', $monthId);
-        }])->whereYear('created_at', $colomboYear);
+        // Validate the incoming request
+        $request->validate([
+            'grades' => 'required|array',
+            'grades.*' => 'string', // Ensure each grade is a string
+            'category' => 'required|string',
+        ]);
 
-        // Filter by grade if provided
-        if ($grade) {
-            $studentsQuery->where('grade', $grade);
+        $grades = $request->input('grades');
+        $category = $request->input('category');
+
+        // Step 1: Search the 'categories' table
+        $categoryRecord = Category::where('category_name', $category)->first();
+        if (!$categoryRecord) {
+            return response()->json(['message' => 'Category not found'], 404);
+        }
+        $categoryId = $categoryRecord->id;
+
+        // Step 2: Search the 'classes' table
+        $classRecord = ClassModel::where('class_name', $selectedClassName)->first();
+        if (!$classRecord) {
+            return response()->json(['message' => 'Class not found'], 404);
+        }
+        $classId = $classRecord->id;
+
+        // Step 3: Find the 'category_id' and 'class_id' in the 'tuitions' table
+        $tuitionRecords = Tuition::where('category_id', $categoryId)
+            ->where('class_id', $classId)
+            ->get();
+
+        if ($tuitionRecords->isEmpty()) {
+            return response()->json(['message' => 'No tuitions found'], 404);
         }
 
-        $students = $studentsQuery->get();
+        // Step 4: Search the 'tuitions_has_grades' table
+        $tuitionIds = $tuitionRecords->pluck('id')->toArray();
+        $gradeIds = Grade::whereIn('grade_name', $grades)->pluck('id')->toArray();
 
-        // Format the response
-        $formattedData = $students->map(function ($student) use ($previousYearId, $previousMonthId) {
-            $report = $student->reports->first(); // Get the report for the current year and month, if it exists
+        $matchingTuitions = Tuition::whereIn('id', $tuitionIds)
+            ->whereHas('grades', function ($query) use ($gradeIds) {
+                $query->whereIn('grade_id', $gradeIds);
+            })
+            ->get();
+
+        if ($matchingTuitions->isEmpty()) {
+            return response()->json(['message' => 'No matching tuitions found'], 404);
+        }
+
+        // Step 5: Fetch students from the 'students_has_tuitions' table
+        $studentTuitions = StudentTuition::whereIn('tuition_id', $matchingTuitions->pluck('id'))
+            ->with('student') // Eager load the related student
+            ->get();
+
+        $studentIds = $studentTuitions->pluck('student_id')->toArray();
+        $students = Student::whereIn('id', $studentIds)->get();
+
+        // Step 6: Identify duplicate g_whatsapp numbers globally
+        $globalWhatsappCounts = Student::groupBy('g_whatsapp')
+            ->havingRaw('COUNT(*) >= 3')
+            ->pluck('g_whatsapp')
+            ->toArray();
+
+        // Step 7: Check for data in the 'students_has_tuitions' table and determine registration and special status
+        $studentData = $studentTuitions->map(function ($studentTuition) use ($matchingTuitions, $globalWhatsappCounts) {
+            $student = $studentTuition->student;
+            $report = StudentReport::where('student_id', $student->id)
+                ->whereIn('tuition_id', $matchingTuitions->pluck('id'))
+                ->first();
 
             // Check if any of the specified fields are null
-            $fieldsToCheck = ['address1', 'school', 'g_name', 'g_mobile', 'gender', 'dob'];
+            $fieldsToCheck = ['address1', 'school', 'g_name', 'g_mobile', 'dob'];
             $isRegistered = true;
 
             foreach ($fieldsToCheck as $field) {
@@ -264,52 +369,30 @@ class StudentReportController extends Controller
                 }
             }
 
-            // Check for previous month's attendance and payment status
-            $previousReport = StudentReport::where('student_id', $student->id)
-                ->where('year_id', $previousYearId)
-                ->where('month_id', $previousMonthId)
-                ->first();
-
-            $notPaidStatus = false;
-            if ($previousReport) {
-                $weeksTrueCount = [
-                    $previousReport->week1,
-                    $previousReport->week2,
-                    $previousReport->week3,
-                    $previousReport->week4,
-                    $previousReport->week5,
-                ];
-                // Count the number of truthy values (e.g., true, 1) in the weeks array
-                $weeksAttended = array_filter($weeksTrueCount, fn($week) => !empty($week));
-
-                // Set notPaidStatus to true if 2 or more weeks are attended and paid is false
-                if (count($weeksAttended) >= 2 && !$previousReport->paid) {
-                    $notPaidStatus = true;
-                }
-            }
+            // Determine if the student is special based on global g_whatsapp counts
+            $isSpecial = in_array($student->g_whatsapp, $globalWhatsappCounts) && $studentTuition->status == 1;
 
             return [
                 'child_id' => $student->id,
-                'child_name' => $student->name,
                 'sno' => $student->sno,
+                'child_name' => $student->name,
                 'gWhatsapp' => $student->g_whatsapp,
-                'week1' => boolval($report->week1 ?? false), // Cast to boolean
-                'week2' => boolval($report->week2 ?? false), // Cast to boolean
-                'week3' => boolval($report->week3 ?? false), // Cast to boolean
-                'week4' => boolval($report->week4 ?? false), // Cast to boolean
-                'week5' => boolval($report->week5 ?? false), // Cast to boolean
-                'paid' => boolval($report->paid ?? false),   // Cast to boolean
-                'register' => $isRegistered,                // Add register status
-                'maths' => boolval($student->maths),         // Get maths value from students table
-                'english' => boolval($student->english),     // Get english value from students table
-                'scholarship' => boolval($student->scholarship), // Get scholarship value from students table
-                'grade' => $student->grade,                 // Get grade value from students table
-                'status' => boolval($student->status),
-                'notpaid' => $notPaidStatus                 // Add notpaid status
+                'week1' => boolval($report->week1 ?? false),
+                'week2' => boolval($report->week2 ?? false),
+                'week3' => boolval($report->week3 ?? false),
+                'week4' => boolval($report->week4 ?? false),
+                'week5' => boolval($report->week5 ?? false),
+                'paid' => boolval($report->paid ?? false),
+                'status' => boolval($studentTuition->status), // Use status from students_has_tuitions
+                'register' => $isRegistered, // Add registration status
+                'special' => $isSpecial, // Add special status
             ];
         });
 
-        return response()->json($formattedData);
+        return response()->json([
+            'tuitionId' => $matchingTuitions->pluck('id')->first(), // Send the first tuitionId
+            'students' => $studentData, // Send the students data
+        ]);
     }
 
     public function history(Request $request)
@@ -340,8 +423,8 @@ class StudentReportController extends Controller
             $previousYearId = $previousYearRecord ? $previousYearRecord->id : $yearId;
         }
 
-        // Fetch the day_id from the classes table
-        $classRecord = Classes::where('class_name', $class)
+        // Fetch the day_id from the ClassModel table
+        $classRecord = ClassModel::where('class_name', $class)
             ->where('grade', $grade)
             ->first();
         $dayId = $classRecord ? $classRecord->day_id : null;

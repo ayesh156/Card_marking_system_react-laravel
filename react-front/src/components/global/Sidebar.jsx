@@ -15,6 +15,8 @@ import "react-toastify/dist/ReactToastify.css";
 import "react-pro-sidebar/dist/css/styles.css";
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import Cookies from "js-cookie";
+import axiosClient from "../../../axios-client.js";
+import { ExpandLess, ExpandMore } from "@mui/icons-material";
 
 
 const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
@@ -56,6 +58,8 @@ const Sidebar = () => {
     const [selected, setSelected] = useState("Dashboard");
     const [selectedClass, setSelectedClass] = useState(null);
     const hasGradeSet = useRef(false);
+    const [categoriesWithGrades, setCategoriesWithGrades] = useState([]);
+    const [expandedCategories, setExpandedCategories] = useState({});
 
     useEffect(() => {
         const storedClass = Cookies.get("selectedClass"); // Get the selected class from cookies
@@ -72,6 +76,20 @@ const Sidebar = () => {
         }
     }, [location]);
 
+    const fetchData = async () => {
+        try {
+            const response = await axiosClient.get('/category-with-grades', {
+                params: { class: selectedClass }, // Replace 'E' with the selected class ('E', 'S', or 'M')
+            });
+            // setCategories(response.data.categories);
+            // setGrades(response.data.grades);
+            console.log(response.data.categories, response.data.grades);
+            setCategoriesWithGrades(response.data);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        }
+    };
+
     // Function to handle window resize
     useEffect(() => {
         const handleResize = () => {
@@ -81,7 +99,16 @@ const Sidebar = () => {
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
 
+
+
     }, []);
+
+    useEffect(() => {
+        if (selectedClass) {
+            fetchData();
+        }
+
+    }, [selectedClass]);
 
     const handleClasses = () => {
         Cookies.set("classSelected", "false");
@@ -96,37 +123,39 @@ const Sidebar = () => {
         window.location.reload(); // Reload the page to reset the state
     };
 
-    // Determine which grades to show based on selectedClass
-    const getGradeItems = () => {
-        if (selectedClass === "E") {
-            // Show Primary to Grade 11
-            hasGradeSet.current = true;
-            return [
-                { title: "Primary", to: "/primary" },
-                ...Array.from({ length: 11 }, (_, i) => ({
-                    title: `Grade${i + 1}`,
-                    to: `/grade${i + 1}`,
-                })),
-            ];
-        } else if (selectedClass === "S") {
-            // Show Grade 3 to Grade 5
-            hasGradeSet.current = true;
-            return Array.from({ length: 3 }, (_, i) => ({
-                title: `Grade${i + 3}`,
-                to: `/grade${i + 3}`,
-            }));
-        } else if (selectedClass === "M") {
-            // Show Grade 6 to Grade 11
-            hasGradeSet.current = true;
-            return Array.from({ length: 6 }, (_, i) => ({
-                title: `Grade${i + 6}`,
-                to: `/grade${i + 6}`,
-            }));
-        }
-        return []; // Default to no grades if no class is selected
-    };
+    // // Determine which grades to show based on selectedClass
+    // const getGradeItems = () => {
+    //     if (selectedClass === "E") {
+    //         // Show Primary to Grade 11
+    //         hasGradeSet.current = true;
+    //         return [
+    //             { title: "Primary", to: "/primary" },
+    //             ...Array.from({ length: 11 }, (_, i) => ({
+    //                 title: `Grade${i + 1}`,
+    //                 to: `/grade${i + 1}`,
+    //             })),
+    //         ];
+    //     } else if (selectedClass === "S") {
+    //         // Show Grade 3 to Grade 5
+    //         hasGradeSet.current = true;
+    //         return Array.from({ length: 3 }, (_, i) => ({
+    //             title: `Grade${i + 3}`,
+    //             to: `/grade${i + 3}`,
+    //         }));
+    //     } else if (selectedClass === "M") {
+    //         // Show Grade 6 to Grade 11
+    //         hasGradeSet.current = true;
+    //         return Array.from({ length: 6 }, (_, i) => ({
+    //             title: `Grade${i + 6}`,
+    //             to: `/grade${i + 6}`,
+    //         }));
+    //     }
+    //     return []; // Default to no grades if no class is selected
+    // };
 
-    const gradeItems = getGradeItems();
+    // const gradeItems = getGradeItems();
+
+
 
     // Refresh the page only once when gradeItems are set
     useEffect(() => {
@@ -135,6 +164,12 @@ const Sidebar = () => {
         }
     }, [hasGradeSet]);
 
+    const toggleCategory = (categoryName) => {
+        setExpandedCategories((prev) => ({
+            ...prev,
+            [categoryName]: !prev[categoryName], // Toggle the expanded state
+        }));
+    };
 
     return (
         <Box
@@ -146,7 +181,7 @@ const Sidebar = () => {
                     backgroundColor: "transparent !important",
                 },
                 "& .pro-inner-item": {
-                    padding: "5px 35px 5px 20px !important",
+                    padding: "5px 15px 5px 20px !important",
                 },
                 "& .pro-inner-item:hover": {
                     color: "#868dfb !important",
@@ -156,7 +191,6 @@ const Sidebar = () => {
                 },
             }}
         >
-            {/*<ToastContainer />*/}
             <ProSidebar width="220px" image="../../assets/bg.png" collapsed={isCollapsed}>
                 <Menu iconShape="square">
                     {/* LOGO AND MENU ICON */}
@@ -174,7 +208,7 @@ const Sidebar = () => {
                                 alignItems="center"
                             >
                                 <IconButton onClick={() => setIsCollapsed(!isCollapsed)}>
-                                    {isCollapsed ? <MenuOutlinedIcon /> : <CloseOutlinedIcon />} {/* Change icon based on collapse state */}
+                                    {isCollapsed ? <MenuOutlinedIcon /> : <CloseOutlinedIcon />}
                                 </IconButton>
                             </Box>
                         )}
@@ -198,21 +232,16 @@ const Sidebar = () => {
                                     sx={{ m: "10px 0 0 0" }}
                                 >
                                     ZYNERGY
-                                    {/*{initialValues.first_name === "" ? "Name" : initialValues.first_name}*/}
                                 </Typography>
                                 <Typography variant="h5" color={colors.greenAccent[500]}>
                                     zynergyedu@gmail.com
-                                    {/*{U_EMAIL}*/}
                                 </Typography>
                             </Box>
                         </Box>
                     )}
 
                     {/* MENU ITEMS */}
-
-                    <Box
-                        paddingLeft={isCollapsed ? undefined : "13%"}
-                    >
+                    <Box paddingLeft={isCollapsed ? undefined : "13%"}>
                         <Item
                             title="Logout"
                             to="/"
@@ -236,26 +265,77 @@ const Sidebar = () => {
                             setSelected={setSelected}
                         />
 
-                        <Typography
-                            variant="h6"
-                            color={colors.grey[100]}
-                            sx={{ m: "15px 0 5px 20px" }}
-                        >
-                            {!isCollapsed ? "Grades" : "Grade..."}
-                        </Typography>
+                        {/* Dynamically Render Categories and Grades */}
+                        {categoriesWithGrades.map((category, index) => (
+                            <Box key={index}>
+                                {/* Category Name */}
+                                <MenuItem
+                                    onClick={() => toggleCategory(category.category_name)}
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <Box display="flex" gap={isCollapsed ? 0 : 2} alignItems="center" width="100%">
+                                        <Typography variant="h6" color={colors.grey[100]}>
+                                            {isCollapsed
+                                                ? category.category_name.charAt(0)
+                                                : category.category_name}
+                                        </Typography>
+                                        <IconButton>
+                                            {expandedCategories[category.category_name] ? (
+                                                <ExpandLess />
+                                            ) : (
+                                                <ExpandMore />
+                                            )}
+                                        </IconButton>
+                                    </Box>
+                                </MenuItem>
 
-                        {/* Dynamically Render Grade Items */}
-                        {gradeItems.map((grade) => (
-                            <Item
-                                key={grade.title}
-                                title={grade.title}
-                                to={grade.to}
-                                icon={<RadioButtonCheckedIcon />}
-                                selected={selected}
-                                setSelected={setSelected}
-                            />
+                                {/* Grades (Sub-items) */}
+                                {expandedCategories[category.category_name] && (
+                                    <Box pl={isCollapsed ? 0 : 1} >
+                                        {category.grades.map((grade, gradeIndex) => {
+                                            // Generate route name with the first letter of the category
+                                            const categoryPrefix = category.category_name.charAt(0).toLowerCase(); // First letter of category
+                                            const routeName = grade === "Primary"
+                                                ? `${categoryPrefix}p` // Special case for "Primary"
+                                                : `${categoryPrefix}${grade
+                                                    .replace(/Grade\s/g, "") // Remove "Grade"
+                                                    .replace(/,\s/g, "-") // Replace ", " with "-"
+                                                    .toLowerCase()}`; // Convert to lowercase
+
+                                            return (
+
+                                                <MenuItem key={gradeIndex}
+                                                    active={selected === routeName} // Highlight the selected sub-item
+                                                    style={{
+                                                        color: selected === routeName ? "inherit" : colors.grey[100], // Purple for selected, default for others
+                                                    }}
+                                                    onClick={() => setSelected(routeName)} // Set the selected sub-item
+                                                >
+                                                    <Link to={`/${routeName}`} style={{ textDecoration: "none", color: "inherit" }}>
+                                                        <Box display="flex" alignItems="center" pt={1}>
+                                                            <RadioButtonCheckedIcon
+                                                                fontSize="1px"
+                                                                style={{
+                                                                    marginRight: isCollapsed ? "2px" : "8px",
+                                                                    color: selected === routeName ? "inherit" : colors.grey[100], // Purple for selected
+                                                                }}
+                                                            />
+                                                            <Typography color="inherit" variant="body2">
+                                                                {!isCollapsed ? (
+                                                                    grade
+                                                                ) : (grade.replace("Grade ", ""))}
+
+                                                            </Typography>
+                                                        </Box>
+                                                    </Link>
+                                                </MenuItem>
+                                            )
+                                        })}
+
+                                    </Box>
+                                )}
+                            </Box>
                         ))}
-
 
                         <Typography
                             variant="h6"

@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Classes extends Model
+class ClassModel extends Model
 {
+    // Specify the table name
+    protected $table = 'classes';
+    
     protected $fillable = [
         'class_name',
-        'grade',
-        'day_id',
     ];
 
     /**
@@ -17,6 +18,6 @@ class Classes extends Model
      */
     public function day()
     {
-        return $this->belongsTo(Days::class, 'day_id');
+        return $this->belongsTo(Day::class, 'day_id');
     }
 }

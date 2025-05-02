@@ -29,50 +29,73 @@ const GradePage = () => {
     const [gradeTitle, setGradeTitle] = useState("Primary");
     const [currentDate, setCurrentDate] = useState("");
     const [grade, setGrade] = useState(null);
+    const [category, setCategory] = useState(null);
     const [message, setMessage] = useState(""); // State to manage the TextField value
+    const [tuitionId, setTuitionId] = useState(""); // State to manage the TextField value
 
 
     // Set the header title based on the location path name
     useEffect(() => {
         const pathName = location.pathname.split("/")[1]; // Get the part after "/"
-        let newGrade = null;
 
-        if (pathName === "primary") {
-            newGrade = "P";
-            setGrade("P"); // Set grade to "P" for Primary
-        } else if (pathName.startsWith("grade")) {
-            const gradeNumber = pathName.replace("grade", ""); // Extract the grade number
-            newGrade = gradeNumber;
-            setGrade(gradeNumber); // Set grade to the last character (grade number)
+        // Map category abbreviations to full names
+        const categoryMap = {
+            s: "Spoken",
+            t: "Theory",
+            g: "Group",
+            p: "Paper",
+        };
+
+        // Extract the category prefix and grade(s)
+        const categoryPrefix = pathName.charAt(0); // First letter (e.g., 's', 't', 'g', 'p')
+        const grades = pathName.slice(1).replace(/-/g, ", "); // Extract grades and replace '-' with ', '
+
+        setGrade(grades); // Set the grade state
+        // Set the category state
+
+        // Set the title dynamically
+        if (categoryMap[categoryPrefix]) {
+            const categoryName = categoryMap[categoryPrefix];
+
+            setCategory(categoryName);
+
+            // Special case for "P" to display "Primary"
+            if (grades.toLowerCase() === "p") {
+                setGradeTitle(`Primary ${categoryName}`);
+            } else {
+                setGradeTitle(`Grade ${grades} ${categoryName}`);
+            }
+        } else {
+            setGradeTitle("Unknown Category"); // Fallback for invalid routes
         }
 
-        // Set the grade title for display
-        if (pathName === "primary") {
-            setGradeTitle("Primary");
-        } else if (pathName.startsWith("grade")) {
-            const formattedTitle = pathName.replace(/grade(\d+)/i, "Grade $1");
-            setGradeTitle(formattedTitle);
-        }
-
-        fetchChildren(newGrade);
     }, [location]);
 
     const fetchChildren = async (currentGrade) => {
         setLoading(true);
         try {
-            const response = await axiosClient.get(`/reports/${currentGrade}`);
-            // console.log( response.data); 
-            // Filter children based on selectedClass and true values
-            const filteredChildren = response.data.filter((child) => {
-                if (selectedClass === "M" && child.maths) return true; // Show if maths is true and selectedClass is "M"
-                if (selectedClass === "E" && child.english) return true; // Show if english is true and selectedClass is "E"
-                if (selectedClass === "S" && child.scholarship) return true; // Show if scholarship is true and selectedClass is "S"
-                return false; // Exclude all other cases
-            });
+            // Prepare the data to send to the backend
+            const requestData = {
+                grades: grade.split(",").map((g) => {
+                    const trimmedGrade = g.trim();
+                    return trimmedGrade.toLowerCase() === "p" ? "Primary" : `Grade ${trimmedGrade}`;
+                }), // Convert grades to an array and handle "p" as "Primary"
+                selectedClass,
+                category: gradeTitle.split(" ").at(-1), // Extract category from the title
+            };
 
-            setChildren(filteredChildren); // Set only active children in the state
-            setFilteredChildren(filteredChildren); // Initialize filteredChildren with active children
-            // console.log(activeChildren);
+            // Send the request to the backend
+            const response = await axiosClient.post('/fetch-student-data', requestData);
+
+            // console.log(response.data.students);
+
+            // Filter out children with status: false
+            const activeChildren = response.data.students.filter((child) => child.status);
+
+            setTuitionId(response.data.tuitionId);
+            setChildren(activeChildren); // Set only active children in the state
+            setFilteredChildren(activeChildren); // Initialize filteredChildren with active children
+
 
         } catch (error) {
             ToastNotification(`Error fetching children: ${error}`, "error", themeMode);
@@ -98,20 +121,14 @@ const GradePage = () => {
     // Fetch children data whenever the grade value is updated
     useEffect(() => {
         if (grade) {
-            fetchChildren(grade);
+            fetchChildren();
         }
-    }, [grade]); // Trigger this effect whenever the grade changes
+    }, [grade, category]); // Trigger this effect whenever the grade changes
 
     // Handle checkbox change for weeks (Auto-send update)
     const handleWeekCheckboxChange = async (childId, week) => {
-        // Find the current state of the checkbox
         const isUnchecked = children.find((child) => child.child_id === childId)[week];
-
-        // Retrieve the `sno` of the child
-        const child = children.find((child) => child.child_id === childId);
-        const sno = child?.sno || "Unknown"; // Fallback to "Unknown" if `sno` is not found        
-
-        // Update the `children` state locally
+    
         const updatedChildren = children.map((child) => {
             if (child.child_id === childId) {
                 return {
@@ -121,33 +138,39 @@ const GradePage = () => {
             }
             return child;
         });
-
-        setChildren(updatedChildren); // Update the state to re-render the table
-        setFilteredChildren(updatedChildren);
-
+    
+        const updatedFilteredChildren = filteredChildren.map((child) => {
+            if (child.child_id === childId) {
+                return {
+                    ...child,
+                    [week]: !child[week], // Toggle the week value
+                };
+            }
+            return child;
+        });
+    
+        setChildren(updatedChildren); // Update the full list
+        setFilteredChildren(updatedFilteredChildren); // Update the filtered list
+    
         setLoading(true);
-
-        // Send updated data to the backend
+    
         try {
             await axiosClient.post("/reports", {
                 child_id: childId,
-                class: selectedClass,
-                grade,
+                tuition_id: tuitionId,
                 weeks: {
                     [week]: updatedChildren.find((child) => child.child_id === childId)[week],
                 },
             });
-
-
-            // Show warning toast only if the checkbox was unchecked
+    
             if (isUnchecked) {
-                ToastNotification(`No. ${sno} Week ${week.replace("week", "")} unchecked!`, "warning", themeMode);
+                ToastNotification(`Week ${week.replace("week", "")} unchecked!`, "warning", themeMode);
+            } else {
+                ToastNotification(`Week ${week.replace("week", "")} checked!`, "success", themeMode);
             }
-
         } catch (error) {
             ToastNotification(`Error updating week report: ${error}`, "error", themeMode);
             console.error("Error updating week report:", error);
-
         } finally {
             setLoading(false);
         }
@@ -169,7 +192,8 @@ const GradePage = () => {
         setLoading(true); // Show loading state
         try {
             // Send delete request to the backend
-            await axiosClient.put(`/status/${childId}`, {selectedClass});
+            await axiosClient.put(`/status/${childId}`, { tuitionId });
+            
             ToastNotification("Record deleted successfully!", "success", themeMode);
 
             // Remove the deleted child from the `children` state
@@ -191,7 +215,6 @@ const GradePage = () => {
         }
     };
 
-
     const currentWeek = getCurrentWeek();
 
     // Handle search input change
@@ -210,14 +233,8 @@ const GradePage = () => {
 
     // Handle checkbox change for paid status (Auto-send update)
     const handlePaidCheckboxChange = async (childId) => {
-        // Find the current state of the `paid` checkbox
         const isUnchecked = children.find((child) => child.child_id === childId).paid;
-
-        // Retrieve the `sno` of the child
-        const child = children.find((child) => child.child_id === childId);
-        const sno = child?.sno || "Unknown"; // Fallback to "Unknown" if `sno` is not found
-
-        // Update the `children` state locally
+    
         const updatedChildren = children.map((child) => {
             if (child.child_id === childId) {
                 return {
@@ -227,32 +244,37 @@ const GradePage = () => {
             }
             return child;
         });
-
-        setChildren(updatedChildren); // Update the state to re-render the table
-        setFilteredChildren(updatedChildren);
-
+    
+        const updatedFilteredChildren = filteredChildren.map((child) => {
+            if (child.child_id === childId) {
+                return {
+                    ...child,
+                    paid: !child.paid, // Toggle the paid value
+                };
+            }
+            return child;
+        });
+    
+        setChildren(updatedChildren); // Update the full list
+        setFilteredChildren(updatedFilteredChildren); // Update the filtered list
+    
         setLoading(true);
-
-        // Send updated paid status to the backend
+    
         try {
             await axiosClient.post("/paid", {
                 child_id: childId,
-                class: selectedClass,
-                grade,
+                tuition_id: tuitionId,
                 paid: updatedChildren.find((child) => child.child_id === childId).paid,
             });
-
-            // Show different toast notifications based on the action
+    
             if (isUnchecked) {
-                ToastNotification(`No. ${sno} Paid status unchecked!`, "warning", themeMode);
+                ToastNotification(`Paid status unchecked!`, "warning", themeMode);
             } else {
-                ToastNotification(`No. ${sno} Paid status checked!`, "success", themeMode);
+                ToastNotification(`Paid status checked!`, "success", themeMode);
             }
-
         } catch (error) {
             ToastNotification(`Error updating paid status: ${error}`, "error", themeMode);
             console.error("Error updating paid status:", error);
-
         } finally {
             setLoading(false);
         }
@@ -284,11 +306,13 @@ const GradePage = () => {
                     className="name-column--cell"
                     style={{
                         textTransform: "capitalize",
-                        color: params.row.register ? "#2ECC71" : "#E74C3C", // Green if registered, red if not
+                        color: params.row.register
+                            ? "#2ECC71" // Green if registered
+                            : "#E74C3C", // Red if not registered
                     }}
                     onClick={() => {
-                        navigate(`/${gradeTitle.toLowerCase().replace(" ", "")}/student`, {
-                            state: { child: params.row.child_id }, // Pass the selected child object as state
+                        navigate(`student`, {
+                            state: { child: params.row.child_id, tuitionId }, // Pass the selected child object as state
                         });
                     }}
                 >
@@ -296,7 +320,26 @@ const GradePage = () => {
                 </Button>
             )
         },
-        { field: "gWhatsapp", headerName: "Contact", flex: 1 },
+        {
+            field: "gWhatsapp",
+            headerName: "Contact",
+            flex: 1,
+            renderCell: (params) => (
+                <Typography
+                    style={{
+                        display: "flex",
+                        alignItems: "center", 
+                        paddingTop: "4px",
+                        textAlign: "center",
+                        height: "100%",
+                        color: params.row.special
+                            ? "#F1C40F" : colors.grey[100]
+                    }}
+                >
+                    {params.value}
+                </Typography>
+            ),
+        },
         {
             field: "week1",
             headerName: "Week 1",
@@ -431,7 +474,8 @@ const GradePage = () => {
                     subtitle="Effortlessly manage grades with our intuitive interface."
                 />
                 <Link
-                    to={`/${gradeTitle.toLowerCase().replace(" ", "")}/student`} // Dynamically set the path
+                   to="student" // Dynamically set the path
+                   state={{ tuitionId }} // Pass the parameters as state
                     style={{ marginLeft: "auto" }}
                 >
                     <Button

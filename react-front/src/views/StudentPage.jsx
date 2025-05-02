@@ -31,7 +31,6 @@ import CircularProgress, {
     circularProgressClasses,
 } from '@mui/material/CircularProgress';
 import { student } from "../data/mockData.js";
-import Cookies from "js-cookie";
 import debounce from "lodash/debounce";
 
 
@@ -121,6 +120,7 @@ const New_Customer = () => {
     const themeMode = theme.palette.mode === "dark" ? "dark" : "light";
 
     const childId = location.state?.child; // Get the child_id from the state
+    const tuitionId = location.state?.tuitionId; // Get the child_id from the state
 
     // Determine if this is an update or a new customer
     const isUpdate = Boolean(childId);
@@ -128,8 +128,6 @@ const New_Customer = () => {
     // State for autocomplete suggestions
     const [suggestions, setSuggestions] = useState([]);
     const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
-    const [selectedClass, setSelectedClass] = useState(Cookies.get("selectedClass") || null);
-
     // ... (useEffect for pageTitle and fetching student data remains unchanged)
 
     // Debounced function to fetch suggestions
@@ -159,13 +157,31 @@ const New_Customer = () => {
 
     useEffect(() => {
         const pathName = location.pathname.split("/")[1]; // Get the part after "/"
-        if (pathName === "primary") {
-            setPageTitle(isUpdate ? "Update Primary Student" : "New Primary Student");
-        } else if (/^grade\d+$/i.test(pathName)) {
-            const gradeNumber = pathName.replace("grade", ""); // Extract the grade number
-            setPageTitle(isUpdate ? `Grade ${gradeNumber} Update Student` : `Grade ${gradeNumber} New Student`);
+
+        // Map category abbreviations to full names
+        const categoryMap = {
+            s: "Spoken",
+            t: "Theory",
+            g: "Group",
+            p: "Paper",
+        };
+
+        // Extract the category prefix and grade(s)
+        const categoryPrefix = pathName.charAt(0); // First letter (e.g., 's', 't', 'g', 'p')
+        const grades = pathName.slice(1).replace(/-/g, ", "); // Extract grades and replace '-' with ', '
+
+        // Set the title dynamically
+        if (categoryMap[categoryPrefix]) {
+            const categoryName = categoryMap[categoryPrefix];
+
+            // Special case for "P" to display "Primary"
+            if (grades.toLowerCase() === "p") {
+                setPageTitle(isUpdate ? `Update Primary ${categoryName} Student` : `New Primary ${categoryName} Student`);
+            } else {
+                setPageTitle(isUpdate ? `Update Grade ${grades} ${categoryName} Student` : `New Grade ${grades} ${categoryName} Student`);
+            }
         } else {
-            setPageTitle(isUpdate ? "Update Student" : "New Student"); // Default title
+            setPageTitle(isUpdate ? "Update Student" : "New Student"); // Fallback for invalid routes
         }
     }, [location, isUpdate]);
 
@@ -211,7 +227,7 @@ const New_Customer = () => {
                         gWhatsapp: data.g_whatsapp || "",
                         gender: data.gender || "female",
                     });
-                    console.log(data);
+                    // console.log(data);
                 })
                 .catch((error) => {
                     ToastNotification("Failed to fetch student data", "error", theme.palette.mode);
@@ -226,54 +242,33 @@ const New_Customer = () => {
 
     const handleFormSubmit = async (values, { resetForm }) => {
         setIsLoading(true);
-        // console.log(dataToSend);
-
-        const grade = Cookies.get("grade");
-
-        // Dynamically set maths, english, and scholarship based on selectedClass
-        let maths = false;
-        let english = false;
-        let scholarship = false;
-
-        if (selectedClass === "E") {
-            maths = false; // Enable maths for "E"
-            english = true; // Enable english for "E"
-            scholarship = false; // Disable scholarship for "E"
-        } else if (selectedClass === "M") {
-            maths = true; // Enable maths for "M"
-            english = false; // Disable english for "M"
-            scholarship = false; // Enable scholarship for "M"
-        } else if (selectedClass === "S") {
-            maths = false; // Disable maths for "S"
-            english = false; // Enable english for "S"
-            scholarship = true; // Enable scholarship for "S"
-        }
 
         const payload = {
             ...values,
             g_name: values.gName || "", // Map gName to g_name
             g_mobile: values.gMobile || "", // Map gMobile to g_mobile
             g_whatsapp: values.gWhatsapp || "", // Map gWhatsapp to g_whatsapp
-            grade,
-            maths,
-            english,
-            scholarship,
         };
-        // console.log(payload);
 
         try {
             if (isUpdate) {
-                // If updating, send a PUT request with the entire object
-                await axiosClient.put(`/student/${childId}`, payload).then(({ data }) => {
+                // If updating, send a PUT request with the child ID and details
+                await axiosClient.put(`/student/${childId}`, {
+                    ...payload,
+                    tuitionId, // Include tuitionId in the request
+                }).then(({ data }) => {
                     ToastNotification(data.message, "success", themeMode);
                 });
             } else {
-                // If creating, send a POST request
-
-                await axiosClient.post("/student", payload).then(({ data }) => {
+                // If creating, send a POST request with the details and tuition ID
+                await axiosClient.post("/student", {
+                    ...payload,
+                    tuitionId, // Include tuitionId in the request
+                }).then(({ data }) => {
                     ToastNotification(data.message, "success", themeMode);
                     resetForm();
                 });
+
             }
         } catch (err) {
             const response = err.response;
@@ -335,7 +330,7 @@ const New_Customer = () => {
                         // Handle enabling the student status
                         try {
                             await axiosClient.put(`/student/status/${values.sno}`, {
-                                selectedClass, // Pass the selectedClass
+                                tuitionId, // Pass the selectedClass
                             });
                             ToastNotification("Student status updated successfully!", "success", themeMode);
                             setButtonText("Save"); // Reset button text to "Save" after enabling
@@ -785,9 +780,9 @@ const New_Customer = () => {
                                     fontSize: "17px",
                                     fontWeight: "500",
                                     paddingY: "10px",
-                                    backgroundColor: isUpdate ? colors.primary[700] : colors.blueAccent[700],
+                                    backgroundColor: buttonText === "Enable" ? colors.greenAccent[700] : (isUpdate ? colors.primary[700] : colors.blueAccent[700]),
                                     "&:hover": {
-                                        backgroundColor: isUpdate ? colors.primary[600] : colors.blueAccent[600],
+                                        backgroundColor: buttonText === "Enable" ? colors.greenAccent[600] : (isUpdate ? colors.primary[600] : colors.blueAccent[600]),
                                     },
                                     width: "150px", // Fixed width for larger screens
                                     justifySelf: "flex-end", // Right align the button

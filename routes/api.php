@@ -5,10 +5,14 @@ use App\Http\Controllers\YearController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ClassesController;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\SidebarController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentReportController;
+use App\Http\Controllers\StudentTuitionController;
 use App\Http\Controllers\UserController;
 use App\Models\Classes;
+use App\Models\ClassModel;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -17,7 +21,7 @@ Route::get('/user', function (Request $request) {
 Route::get('/dashboard-stats', [StudentReportController::class, 'dashboardStats']);
 Route::get('/monthly-attendance-stats', [StudentReportController::class, 'monthlyAttendanceStats']);
 Route::get('/classes-count', function () {
-    return response()->json(['count' => Classes::count()]);
+    return response()->json(['count' => ClassModel::count()]);
 });
 Route::get('/recent-payments', [StudentReportController::class, 'recentPayments']);
 
@@ -29,20 +33,24 @@ Route::get('/mode/{email}', [UserController::class, 'getMode']);
 Route::get('/student', [StudentController::class, 'index']);
 Route::post('/student', [StudentController::class, 'store']);
 Route::put('/student/{id}', [StudentController::class, 'update']);
-Route::put('/status/{id}', [StudentController::class, 'status']);
+
 Route::get('/student/{id}', [StudentController::class, 'show']);
 Route::get('/students/search', [StudentController::class, 'search']);
 Route::put('/student/status/{sno}', [StudentController::class, 'updateStatus']);
-Route::post('/reports', [StudentReportController::class, 'store']);
-Route::post('/paid', [StudentReportController::class, 'paid']);
 Route::get('/reports/{grade}', [StudentReportController::class, 'reports']);
 Route::get('/history', [StudentReportController::class, 'history']);
-
 Route::post('/send-whatsapp-messages', [StudentReportController::class, 'sendWhatsAppMessages']);
 Route::post('/days', [ClassesController::class, 'days']);
 Route::post('/get-day', [ClassesController::class, 'getDay']);
 
 Route::get('/months', [MonthController::class, 'getMonths']);
 Route::get('/years', [YearController::class, 'getYears']);
+
+// after adding new structure
+Route::get('/category-with-grades', [SidebarController::class, 'getCategoryWithGrades']);
+Route::post('/fetch-student-data', [StudentReportController::class, 'fetchStudentData']);
+Route::post('/reports', [StudentReportController::class, 'weekStatus']);
+Route::post('/paid', [StudentReportController::class, 'paidStatus']);
+Route::put('/status/{id}', [StudentTuitionController::class, 'status']);
 
 

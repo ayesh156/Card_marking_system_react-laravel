@@ -20,10 +20,6 @@ class Student extends Model
         'g_whatsapp',
         'gender',
         'dob',
-        'maths',
-        'english',
-        'scholarship',
-        'grade',
     ];
 
     /**
@@ -34,4 +30,11 @@ class Student extends Model
         return $this->hasMany(StudentReport::class, 'student_id');
     }
 
+    /**
+     * Define the relationship with the StudentTuition model.
+     */
+    public function studentTuitions()
+    {
+        return $this->hasMany(StudentTuition::class, 'student_id');
+    }
 }

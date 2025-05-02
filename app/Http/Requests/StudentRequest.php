@@ -22,20 +22,17 @@ class StudentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sno' => 'required|string|max:20|unique:students,sno,' . $this->route('id'),
-            'name' => 'required|string|max:100',
-            'address1' => 'nullable|string',
-            'address2' => 'nullable|string',
-            'school' => 'nullable|string',
-            'g_name' => 'nullable|string|max:100',
-            'g_mobile' => 'nullable|string|max:10',
-            'g_whatsapp' => 'nullable|string|max:10',
-            'gender' => 'nullable|string|max:10',
-            'dob' => 'nullable|date_format:Y-m-d',
-            'maths' => 'required|boolean',
-            'english' => 'required|boolean',
-            'scholarship' => 'required|boolean',
-            'grade' => 'nullable|string|max:1',
+            'sno' => 'required|string|max:255',
+        'name' => 'required|string|max:255',
+        'address1' => 'nullable|string|max:255',
+        'address2' => 'nullable|string|max:255',
+        'school' => 'nullable|string|max:255',
+        'g_name' => 'nullable|string|max:255',
+        'g_mobile' => 'nullable|string|max:15',
+        'g_whatsapp' => 'nullable|string|max:15',
+        'gender' => 'required|string|in:male,female',
+        'dob' => 'nullable|date',
+        'tuitionId' => 'required|exists:tuitions,id', // Ensure tuitionId exists in the tuitions table
         ];
     }
 }

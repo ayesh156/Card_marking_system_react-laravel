@@ -5,21 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class StudentReport extends Model
+class StudentTuition extends Model
 {
     use HasFactory;
 
+    protected $table = 'students_has_tuitions'; // Specify the table name
+
     protected $fillable = [
         'student_id',
-        'month_id',
         'tuition_id',
-        'year_id',
-        'week1',
-        'week2',
-        'week3',
-        'week4',
-        'week5',
-        'paid',
+        'status', // Include the new column
     ];
 
     /**
@@ -31,26 +26,10 @@ class StudentReport extends Model
     }
 
     /**
-     * Define the relationship with the Month model.
-     */
-    public function month()
-    {
-        return $this->belongsTo(Month::class, 'month_id');
-    }
-
-    /**
      * Define the relationship with the Tuition model.
      */
     public function tuition()
     {
         return $this->belongsTo(Tuition::class, 'tuition_id');
-    }
-
-    /**
-     * Define the relationship with the Year model.
-     */
-    public function year()
-    {
-        return $this->belongsTo(Year::class, 'year_id');
     }
 }
