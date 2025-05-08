@@ -17,7 +17,6 @@ import CircularProgress, {
 } from '@mui/material/CircularProgress';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const userEmail = "zynergyedu@gmail.com";
 
 const customerSchema = yup.object().shape({
     name: yup
@@ -81,7 +80,8 @@ const Settings = () => {
         name: "",
         email: "",
         password: "",
-        beforePaymentTemplate: "",
+        beforePaymentWeek3: "",
+        beforePaymentWeek4: "",
         afterPaymentTemplate: "",
     });
     const [grades, setGrades] = useState([]); // Grades for the "Grade" dropdown
@@ -98,48 +98,82 @@ const Settings = () => {
     const [selectedDay, setSelectedDay] = useState(""); // Selected day
     const hasGradeSet = useRef(false); // Ref to track if grades have been set
     const [selectedClass, setSelectedClass] = useState(Cookies.get("selectedClass") || ""); // Selected class
-
-    useEffect(() => {
-        const gradeItems = getGradeItems();
-        setGrades(gradeItems); // Update the grades state
-
-        // Set the default selected grade to "Primary" (P) if available
-        if (gradeItems.length > 0 && !hasGradeSet.current) {
-            const defaultGrade = gradeItems.find((grade) => grade.value === "P");
-            const initialGrade = defaultGrade ? defaultGrade.value : gradeItems[0].value;
-            setSelectedGrade(initialGrade);
-            hasGradeSet.current = true;
-
-            // Fetch the day_id for "Primary" and the selected class
-            if (selectedClass && initialGrade) {
-                fetchDay(initialGrade);
-            }
-        } else if (gradeItems.length === 0) {
-            setSelectedGrade(""); // Reset to empty string if no grades are available
-            setSelectedDay(""); // Reset day as well
-        }
-    }, [selectedClass]);
+    const [userEmail, setUserEmail] = useState(Cookies.get("userEmail") || ""); // Selected class
+    const [selectedUser, setSelectedUser] = useState("");
+    const [selectedStatus, setSelectedStatus] = useState("");
+    const [users, setUsers] = useState([]);
 
     // Function to fetch day_id from backend
-    const fetchDay = async (grade) => {
+    const fetchGrades = async () => {
         try {
-            const response = await axiosClient.post("/get-day", {
-                grade: grade,
-                class: selectedClass,
+            const response = await axiosClient.post("/gradesAndDays", {
+                selectedClass, // Send the selected class ID
             });
 
-            // Update the "Day" dropdown based on the response
-            const dayId = response.data.day || "";
-            if (dayId && days.some((day) => day.value === dayId)) {
-                setSelectedDay(dayId); // Automatically select the correct day
+            const gradesData = response.data.data || []; // Use the 'data' key from the backend response
+            // console.log("Grades data:", gradesData); // Log the grades data for debugging
+
+            // Update the grades dropdown options
+            setGrades(gradesData);
+
+            // Check if the current selectedGrade exists in the updated grades list
+            const currentGradeExists = gradesData.some((grade) => grade.id === selectedGrade);
+
+            if (currentGradeExists) {
+                // If the current selectedGrade exists, retain it
+                const currentGradeData = gradesData.find((grade) => grade.id === selectedGrade);
+                setSelectedDay(currentGradeData.day_id || ""); // Update the day_id for the current grade
+            } else if (gradesData.length > 0) {
+                // If the current selectedGrade doesn't exist, select the first grade
+                setSelectedGrade(gradesData[0].id || ""); // Set the first grade's ID
+                setSelectedDay(gradesData[0].day_id || ""); // Set the first grade's day_id
             } else {
-                setSelectedDay(""); // Reset the selected day if no match is found
+                // Reset if no grades are available
+                setSelectedGrade("");
+                setSelectedDay("");
             }
         } catch (error) {
-            console.error("Error fetching day:", error);
-            setSelectedDay(""); // Reset on error
+            console.error("Error fetching grades:", error);
+            setGrades([]); // Reset grades on error
+            setSelectedGrade(""); // Reset grade on error
+            setSelectedDay(""); // Reset day on error
         }
     };
+
+    // Fetch all users if logged-in user is admin
+    useEffect(() => {
+        if (userEmail === "admin@gmail.com") {
+            axiosClient.get("/users")
+                .then((response) => {
+                    const usersData = response.data.data || [];
+                    // Map users to include status as "enable" or "disable"
+                    const mappedUsers = usersData.map((user) => ({
+                        ...user,
+                        statusText: user.status === 0 ? "disable" : "enable",
+                    }));
+
+                    setUsers(mappedUsers);
+
+                    // Auto-select the first user and their status
+                    if (usersData.length > 0) {
+                        setSelectedUser(mappedUsers[0].email); // Select the first user's email
+                        setSelectedStatus(mappedUsers[0].statusText); // Select the first user's status
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error fetching users:", error);
+                    setUsers([]); // Reset users to an empty array on error
+                });
+        }
+    }, [userEmail]);
+
+
+
+
+    // Fetch grades on page load
+    useEffect(() => {
+        fetchGrades();
+    }, [selectedClass]);
 
     useEffect(() => {
         // Replace with the actual user's email (from auth or route)
@@ -150,8 +184,9 @@ const Settings = () => {
                     name: user.name || "",
                     email: user.email || "",
                     password: "",
-                    beforePaymentTemplate: user.Before_Payment_Template || "",
-                    afterPaymentTemplate: user.After_Payment_Template || "",
+                    beforePaymentWeek3: user.before_payment_week3 || "",
+                    beforePaymentWeek4: user.before_payment_week4 || "",
+                    afterPaymentTemplate: user.after_payment_template || "",
                 });
                 if (user.image_path) {
                     setSelectedImage(`${API_BASE_URL}/storage/${user.image_path}`);
@@ -165,58 +200,6 @@ const Settings = () => {
             });
     }, []);
 
-    // Function to determine which grades to show based on selectedClass
-    const getGradeItems = () => {
-        if (selectedClass === "E") {
-            // Show Primary to Grade 11
-            return [
-                { value: "P", label: "Primary" },
-                ...Array.from({ length: 11 }, (_, i) => ({
-                    value: `${i + 1}`,
-                    label: `Grade ${i + 1}`,
-                })),
-            ];
-        } else if (selectedClass === "S") {
-            // Show Grade 3 to Grade 5
-            return Array.from({ length: 3 }, (_, i) => ({
-                value: `${i + 3}`,
-                label: `Grade ${i + 3}`,
-            }));
-        } else if (selectedClass === "M") {
-            // Show Grade 6 to Grade 11
-            return Array.from({ length: 6 }, (_, i) => ({
-                value: `${i + 6}`,
-                label: `Grade ${i + 6}`,
-            }));
-        }
-        return []; // Default to no grades if no class is selected
-    };
-
-    // Handle grade selection
-    const handleGradeChange = async (selectedOption) => {
-        setSelectedGrade(selectedOption); // Update the selected grade
-
-        try {
-            // Send the selected grade and class to the backend
-            const response = await axiosClient.post("/get-day", {
-                grade: selectedOption,
-                class: selectedClass,
-            });
-
-            // Update the "Day" dropdown based on the response
-            const dayId = response.data.day || "";
-            if (dayId) {
-                setSelectedDay(dayId); // Automatically select the correct day
-            } else {
-                setSelectedDay(""); // Reset the selected day if no match is found
-            }
-        } catch (error) {
-            console.error("Error fetching day:", error);
-            setSelectedDay(""); // Reset on error
-        }
-    };
-
-
     const handleFormSubmit = async (values) => {
 
         setIsLoading(true); // Set loading state to true
@@ -226,12 +209,15 @@ const Settings = () => {
             name: values.name,
             email: values.email,
             password: values.password, // Add password field
-            beforePaymentTemplate: values.beforePaymentTemplate,
+            beforePaymentWeek3: values.beforePaymentWeek3,
+            beforePaymentWeek4: values.beforePaymentWeek4,
             afterPaymentTemplate: values.afterPaymentTemplate,
             status: true, // Default status
             mode: 'A', // Example mode
             image: selectedImage, // Include the image as a base64 string if needed
         };
+
+        // console.log(payload); 
 
         try {
             // Send the payload to the backend
@@ -244,21 +230,36 @@ const Settings = () => {
             console.error('Error saving user:', error);
             ToastNotification("An error occurred while saving the user. Please try again.", "error", theme.palette.mode);
         }
-        
+
         try {
-            // Send the grade, class name, and day ID to the backend
-            await axiosClient.post("/days", {
-                grade: selectedGrade,
-                class: selectedClass,
-                day_id: selectedDay,
+            // Send the grade ID and day ID to the backend
+            await axiosClient.post("/update-day", {
+                id: selectedGrade, // Send the selected grade ID
+                day_id: selectedDay,    // Send the selected day ID
             });
 
-            
         } catch (error) {
-            console.error("Error saving or updating record:", error);
-            ToastNotification("An error occurred while saving the data. Please try again.", "error", theme.palette.mode);
+            console.error("Error updating day:", error);
+            ToastNotification("An error occurred while updating the day. Please try again.", "error", theme.palette.mode);
         } finally {
             setIsLoading(false); // Set loading state to false
+            fetchGrades();
+        }
+
+        if (userEmail === "admin@gmail.com") {
+            if (!selectedUser || !selectedStatus) {
+                ToastNotification("Please select a user and status.", "error");
+                return;
+            }
+
+            axiosClient.put(`/users/${selectedUser}/status`, { status: selectedStatus === "enable" ? 1 : 0 })
+                .then(() => {
+                    ToastNotification("User status updated successfully.", "success");
+                })
+                .catch((error) => {
+                    console.error("Error updating user status:", error);
+                    ToastNotification("Failed to update user status.", "error");
+                });
         }
 
         ToastNotification("Setting Updated Successfully", "success", theme.palette.mode);
@@ -278,18 +279,18 @@ const Settings = () => {
     };
 
     if (isPageLoading) {
-            return (
-                <Box
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    height="100vh"
-                >
-                    {/* Use the custom circular progress */}
-                    <FacebookCircularProgress />
-                </Box>
-            );
-        }
+        return (
+            <Box
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+                height="100vh"
+            >
+                {/* Use the custom circular progress */}
+                <FacebookCircularProgress />
+            </Box>
+        );
+    }
 
 
     return (
@@ -407,6 +408,82 @@ const Settings = () => {
                                     )}
                                 </Box>
                             </Box>
+                            {userEmail === "admin@gmail.com" && (
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        gridColumn: "span 4",
+                                        justifyContent: "space-between",
+                                        gap: "20px", // Add spacing between the selects
+                                        "@media (max-width: 767px)": {
+                                            flexDirection: "column", // Stack selects on smaller screens
+                                            gap: 3,
+                                        },
+                                    }}>
+                                    {/* Select Box for Users */}
+                                    <FormControl fullWidth variant="filled" sx={{
+                                        "& .MuiInputBase-root": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-focused": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputLabel-root.Mui-focused": {
+                                            color: colors.primary[100],
+                                        },
+                                    }}>
+                                        <InputLabel id="user-select-label">Select User</InputLabel>
+                                        <Select
+                                            labelId="user-select-label"
+                                            value={selectedUser}
+                                            onChange={(e) => setSelectedUser(e.target.value)}
+                                        >
+                                            {users.map((user) => (
+                                                <MenuItem key={user.email} value={user.email}>
+                                                    {user.email}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+
+                                    {/* Select Box for Status */}
+                                    <FormControl fullWidth variant="filled" sx={{
+                                        "& .MuiInputBase-root": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-focused": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputLabel-root.Mui-focused": {
+                                            color: colors.primary[100],
+                                        },
+                                    }}>
+                                        <InputLabel id="status-select-label">Select Status</InputLabel>
+                                        <Select
+                                            labelId="status-select-label"
+                                            value={selectedStatus}
+                                            onChange={(e) => setSelectedStatus(e.target.value)}
+                                        >
+                                            <MenuItem value="enable">Enable</MenuItem>
+                                            <MenuItem value="disable">Disable</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Box>
+                            )}
                             <TextField
                                 fullWidth
                                 variant="filled"
@@ -422,6 +499,10 @@ const Settings = () => {
                                     gridColumn: "span 4",
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
                                     },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
@@ -445,10 +526,15 @@ const Settings = () => {
                                 error={touched.email && Boolean(errors.email)}
                                 helperText={touched.email && errors.email}
                                 value={values.email}
+                                disabled
                                 sx={{
                                     gridColumn: "span 4",
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
                                     },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
@@ -465,15 +551,48 @@ const Settings = () => {
                                 fullWidth
                                 variant="filled"
                                 type="text"
-                                label="Before Payment Template"
-                                name="beforePaymentTemplate"
+                                label="Before Payment Template Week 3"
+                                name="beforePaymentWeek3"
                                 onBlur={handleBlur}
                                 onChange={handleChange}
-                                value={values.beforePaymentTemplate}
+                                value={values.beforePaymentWeek3}
                                 sx={{
                                     gridColumn: "span 4",
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
+                                    },
+                                    "& .MuiInputBase-root.Mui-hovered": {
+                                        backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-focused": {
+                                        backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputLabel-root.Mui-focused": {
+                                        color: colors.primary[100],
+                                    },
+                                }}
+                            />
+                            <TextField
+                                fullWidth
+                                variant="filled"
+                                type="text"
+                                label="Before Payment Template Week 4"
+                                name="beforePaymentWeek4"
+                                onBlur={handleBlur}
+                                onChange={handleChange}
+                                value={values.beforePaymentWeek4}
+                                sx={{
+                                    gridColumn: "span 4",
+                                    "& .MuiInputBase-root": {
+                                        backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
                                     },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
@@ -499,6 +618,10 @@ const Settings = () => {
                                     gridColumn: "span 4",
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
                                     },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
@@ -531,7 +654,11 @@ const Settings = () => {
                                         "& .MuiInputBase-root": {
                                             backgroundColor: colors.primary[400],
                                         },
-                                        "& .MuiInputBase-root:hover": {
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
                                             backgroundColor: colors.primary[400],
                                         },
                                         "& .MuiInputBase-root.Mui-focused": {
@@ -540,47 +667,63 @@ const Settings = () => {
                                         "& .MuiInputLabel-root.Mui-focused": {
                                             color: colors.primary[100],
                                         },
-                                    }}>
+                                    }}
+                                >
                                     <InputLabel id="grade-select-label">Grade</InputLabel>
                                     <Select
                                         labelId="grade-select-label"
                                         id="grade-select"
                                         value={selectedGrade || ""}
-                                        onChange={(event) => handleGradeChange(event.target.value)} // Handle grade change
+                                        onChange={(event) => {
+                                            const selectedGradeId = event.target.value;
+                                            setSelectedGrade(selectedGradeId);
+
+                                            // Find the selected grade's day_id and update the day dropdown
+                                            const selectedGradeData = grades.find((grade) => grade.id === selectedGradeId);
+                                            if (selectedGradeData) {
+                                                setSelectedDay(selectedGradeData.day_id || ""); // Update the day dropdown
+                                            }
+                                        }}
                                     >
-                                        {grades.map((grade, index) => (
-                                            <MenuItem key={index} value={grade.value}>
-                                                {grade.label}
+                                        {grades.map((grade) => (
+                                            <MenuItem key={grade.id} value={grade.id}>
+                                                {grade.grade} {/* Use the 'grade' key from the backend */}
                                             </MenuItem>
                                         ))}
                                     </Select>
                                 </FormControl>
 
                                 {/* Day Dropdown */}
-                                <FormControl fullWidth variant="filled" sx={{
-                                    "& .MuiInputBase-root": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root:hover": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-focused": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputLabel-root.Mui-focused": {
-                                        color: colors.primary[100],
-                                    },
-                                }}>
+                                <FormControl fullWidth variant="filled"
+                                    sx={{
+                                        "& .MuiInputBase-root": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-focused": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputLabel-root.Mui-focused": {
+                                            color: colors.primary[100],
+                                        },
+                                    }}
+                                >
                                     <InputLabel id="day-select-label">Day</InputLabel>
                                     <Select
                                         labelId="day-select-label"
                                         id="day-select"
-                                        value={selectedDay || ""} // Ensure value is a string
+                                        value={selectedDay || ""}
                                         onChange={(event) => setSelectedDay(event.target.value)} // Handle day change
                                     >
                                         {days.map((day, index) => (
-                                            <MenuItem key={index} value={day.value || day}> {/* Ensure value is a string */}
-                                                {day.label || day} {/* Ensure children is a string */}
+                                            <MenuItem key={index} value={day.value}>
+                                                {day.label}
                                             </MenuItem>
                                         ))}
                                     </Select>

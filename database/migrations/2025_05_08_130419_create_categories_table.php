@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('days', function (Blueprint $table) {
+        Schema::create('categories', function (Blueprint $table) {
             $table->id(); // Auto-incrementing primary key
-            $table->string('day_name', 10); // Name of the day (e.g., Monday, Tuesday)
+            $table->string('category_name', 20); // Category name (VARCHAR(20))
             $table->timestamps(); // Adds created_at and updated_at columns
         });
     }
@@ -23,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('days');
+        Schema::dropIfExists('categories');
     }
 };

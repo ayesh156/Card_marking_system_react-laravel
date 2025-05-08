@@ -26,12 +26,13 @@ const GradePage = () => {
     const navigate = useNavigate();
     const location = useLocation(); // Get the current location
     const themeMode = theme.palette.mode === "dark" ? "dark" : "light";
-    const [gradeTitle, setGradeTitle] = useState("Primary");
+    const [gradeTitle, setGradeTitle] = useState("Nursery");
     const [currentDate, setCurrentDate] = useState("");
     const [grade, setGrade] = useState(null);
     const [category, setCategory] = useState(null);
     const [message, setMessage] = useState(""); // State to manage the TextField value
     const [tuitionId, setTuitionId] = useState(""); // State to manage the TextField value
+    const [userEmail, setUserEmail] = useState(Cookies.get("userEmail") || ""); // Selected class
 
 
     // Set the header title based on the location path name
@@ -59,9 +60,9 @@ const GradePage = () => {
 
             setCategory(categoryName);
 
-            // Special case for "P" to display "Primary"
-            if (grades.toLowerCase() === "p") {
-                setGradeTitle(`Primary ${categoryName}`);
+            // Special case for "P" to display "Nursery"
+            if (grades.trim().charAt(0).toLowerCase() === "n") {
+                setGradeTitle(`Nursery ${categoryName}`);
             } else {
                 setGradeTitle(`Grade ${grades} ${categoryName}`);
             }
@@ -71,15 +72,16 @@ const GradePage = () => {
 
     }, [location]);
 
-    const fetchChildren = async (currentGrade) => {
+    const fetchChildren = async () => {
         setLoading(true);
         try {
             // Prepare the data to send to the backend
             const requestData = {
                 grades: grade.split(",").map((g) => {
                     const trimmedGrade = g.trim();
-                    return trimmedGrade.toLowerCase() === "p" ? "Primary" : `Grade ${trimmedGrade}`;
-                }), // Convert grades to an array and handle "p" as "Primary"
+                    // Check if the first character of the trimmed grade is "n"
+                    return trimmedGrade.charAt(0).toLowerCase() === "n" ? "Nursery" : `Grade ${trimmedGrade}`;
+                }),
                 selectedClass,
                 category: gradeTitle.split(" ").at(-1), // Extract category from the title
             };
@@ -87,7 +89,15 @@ const GradePage = () => {
             // Send the request to the backend
             const response = await axiosClient.post('/fetch-student-data', requestData);
 
-            // console.log(response.data.students);
+            // console.log(response.data.tuitionId);
+
+            // Check if students is null
+            if (!response.data.students) {
+                setTuitionId(response.data.tuitionId || null); // Set tuitionId even if students is null
+                setChildren([]); // Reset children state
+                setFilteredChildren([]); // Reset filteredChildren state
+                return; // Exit the function
+            }
 
             // Filter out children with status: false
             const activeChildren = response.data.students.filter((child) => child.status);
@@ -96,10 +106,11 @@ const GradePage = () => {
             setChildren(activeChildren); // Set only active children in the state
             setFilteredChildren(activeChildren); // Initialize filteredChildren with active children
 
-
         } catch (error) {
-            ToastNotification(`Error fetching children: ${error}`, "error", themeMode);
+            // ToastNotification(`Error fetching children: ${error}`, "error", themeMode);
             console.error("Error fetching children:", error);
+            setChildren([]); // Reset children state on error
+            setFilteredChildren([]); // Reset filteredChildren state on error
         } finally {
             setLoading(false);
         }
@@ -128,7 +139,7 @@ const GradePage = () => {
     // Handle checkbox change for weeks (Auto-send update)
     const handleWeekCheckboxChange = async (childId, week) => {
         const isUnchecked = children.find((child) => child.child_id === childId)[week];
-    
+
         const updatedChildren = children.map((child) => {
             if (child.child_id === childId) {
                 return {
@@ -138,7 +149,7 @@ const GradePage = () => {
             }
             return child;
         });
-    
+
         const updatedFilteredChildren = filteredChildren.map((child) => {
             if (child.child_id === childId) {
                 return {
@@ -148,12 +159,12 @@ const GradePage = () => {
             }
             return child;
         });
-    
+
         setChildren(updatedChildren); // Update the full list
         setFilteredChildren(updatedFilteredChildren); // Update the filtered list
-    
+
         setLoading(true);
-    
+
         try {
             await axiosClient.post("/reports", {
                 child_id: childId,
@@ -162,7 +173,7 @@ const GradePage = () => {
                     [week]: updatedChildren.find((child) => child.child_id === childId)[week],
                 },
             });
-    
+
             if (isUnchecked) {
                 ToastNotification(`Week ${week.replace("week", "")} unchecked!`, "warning", themeMode);
             } else {
@@ -193,7 +204,7 @@ const GradePage = () => {
         try {
             // Send delete request to the backend
             await axiosClient.put(`/status/${childId}`, { tuitionId });
-            
+
             ToastNotification("Record deleted successfully!", "success", themeMode);
 
             // Remove the deleted child from the `children` state
@@ -234,7 +245,7 @@ const GradePage = () => {
     // Handle checkbox change for paid status (Auto-send update)
     const handlePaidCheckboxChange = async (childId) => {
         const isUnchecked = children.find((child) => child.child_id === childId).paid;
-    
+
         const updatedChildren = children.map((child) => {
             if (child.child_id === childId) {
                 return {
@@ -244,7 +255,7 @@ const GradePage = () => {
             }
             return child;
         });
-    
+
         const updatedFilteredChildren = filteredChildren.map((child) => {
             if (child.child_id === childId) {
                 return {
@@ -254,19 +265,20 @@ const GradePage = () => {
             }
             return child;
         });
-    
+
         setChildren(updatedChildren); // Update the full list
         setFilteredChildren(updatedFilteredChildren); // Update the filtered list
-    
+
         setLoading(true);
-    
+
         try {
             await axiosClient.post("/paid", {
                 child_id: childId,
                 tuition_id: tuitionId,
                 paid: updatedChildren.find((child) => child.child_id === childId).paid,
+                email: userEmail
             });
-    
+
             if (isUnchecked) {
                 ToastNotification(`Paid status unchecked!`, "warning", themeMode);
             } else {
@@ -280,12 +292,33 @@ const GradePage = () => {
         }
     };
 
-    const handleSendAll = () => {
-        if (message.trim() !== "") { // Only proceed if the message is not empty
-            console.log("Message sent:", message); // Print the message to the console
-            // Add any additional logic here, such as sending the message to the backend
-        } else {
-            console.log("Message is empty. Please enter a message."); // Optional: Log a warning or show a toast
+    const handleSendAll = async () => {
+        if (message.trim() === "") {
+            ToastNotification("Message is empty. Please enter a message.", "warning", themeMode);
+            return;
+        }
+
+        if (!tuitionId) {
+            ToastNotification("Tuition ID is missing. Please try again.", "error", themeMode);
+            return;
+        }
+
+        setSendBtnLoading(true);
+
+        try {
+            const response = await axiosClient.post("/send-message-to-tuitions", {
+                message,
+                tuition_id: tuitionId,
+            });
+
+            ToastNotification("Messages sent successfully!", "success", themeMode);
+            // console.log("Response:", response.data);
+        } catch (error) {
+            ToastNotification(`Error sending messages: ${error.response?.data?.message || error.message}`, "error", themeMode);
+            console.error("Error sending messages:", error);
+        } finally {
+            setSendBtnLoading(false);
+            setMessage(""); // Clear the TextField value
         }
     };
 
@@ -328,7 +361,7 @@ const GradePage = () => {
                 <Typography
                     style={{
                         display: "flex",
-                        alignItems: "center", 
+                        alignItems: "center",
                         paddingTop: "4px",
                         textAlign: "center",
                         height: "100%",
@@ -474,8 +507,8 @@ const GradePage = () => {
                     subtitle="Effortlessly manage grades with our intuitive interface."
                 />
                 <Link
-                   to="student" // Dynamically set the path
-                   state={{ tuitionId }} // Pass the parameters as state
+                    to="student" // Dynamically set the path
+                    state={{ tuitionId }} // Pass the parameters as state
                     style={{ marginLeft: "auto" }}
                 >
                     <Button
@@ -628,34 +661,33 @@ const GradePage = () => {
             </Box>
             <Box
                 sx={{
-                    display: "flex", justifyContent: "space-between", gap: "50px", mt: 5, "@media (max-width: 767px)": {
-                        flexDirection: "column",
-                        gap: "5px",
-                    },
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" }, // Stack on small screens, inline on larger screens
+                    gap: "20px",
+                    mt: 5,
+                    width: "100%", // Make the container span the full width
                 }}
             >
                 <TextField
                     label="Enter your message"
                     multiline
-                    rows={5}
+                    rows={1}
                     fullWidth
                     color="secondary"
                     value={message} // Bind the TextField value to the state
                     onChange={(e) => setMessage(e.target.value)} // Update the state on change
                     sx={{
-                        width: "60%", backgroundColor: colors.primary[400], "@media (max-width: 767px)": {
-                            width: "100%"
-                        },
+                        width: "100%",
+                        backgroundColor: colors.primary[400],
                     }}
                 />
                 <Box
                     sx={{
-                        display: "flex", justifyContent: "space-between", alignItems: "end", flexDirection: "column", gap: 3, "@media (max-width: 767px)": {
-                            gap: 1,
-                            mt: 1,
-                            width: "100%",
-                            alignItems: "stretch",
-                        },
+                        display: "flex",
+                        alignItems: "center",
+                        flexDirection: { xs: "column", sm: "row" }, // Stack on small screens, inline on larger screens
+                        gap: { xs: 2, sm: 3 }, // Adjust gap for small and large screens
+                        width: { xs: "100%", sm: "auto" }, // Full width on small screens
                     }}
                 >
                     <Button

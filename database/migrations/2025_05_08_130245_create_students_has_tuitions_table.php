@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('days', function (Blueprint $table) {
+        Schema::create('students_has_tuitions', function (Blueprint $table) {
             $table->id(); // Auto-incrementing primary key
-            $table->string('day_name', 10); // Name of the day (e.g., Monday, Tuesday)
+            $table->foreignId('student_id')->constrained('students')->onDelete('cascade'); // Foreign key to students table
+            $table->foreignId('tuition_id')->constrained('classes')->onDelete('cascade'); // Foreign key to classes table
+            $table->boolean('status')->default(true); // Status column (TINYINT(1))
             $table->timestamps(); // Adds created_at and updated_at columns
         });
     }
@@ -23,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('days');
+        Schema::dropIfExists('students_has_tuitions');
     }
 };

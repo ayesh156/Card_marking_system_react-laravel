@@ -13,13 +13,8 @@ return new class extends Migration
     {
         Schema::create('classes', function (Blueprint $table) {
             $table->id(); // Auto-incrementing primary key
-            $table->string('class_name', 1)->nullable(); // Revert class_name to not nullable
-            $table->string('grade', 1)->nullable(); // Revert grade to not nullable
-            $table->unsignedBigInteger('day_id'); // Foreign key to days table
+            $table->string('class_name', 20); // Class name (varchar(20))
             $table->timestamps(); // Adds created_at and updated_at columns
-
-            // Add foreign key constraint
-            $table->foreign('day_id')->references('id')->on('days')->onDelete('cascade');
         });
     }
 

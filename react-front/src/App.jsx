@@ -21,7 +21,7 @@ function App() {
 
     // Load initial states from localStorage
     const [authenticated, setAuthenticated] = useState(() => {
-        return Cookies.get("authenticated") === "true";
+        return !!localStorage.getItem("ACCESS_TOKEN"); // Check if the token exists
     });
     const [classSelected, setClassSelected] = useState(() => {
         return Cookies.get("classSelected") === "true";
@@ -30,31 +30,24 @@ function App() {
         return Cookies.get("selectedClass") || null;
     });
 
-    // Update the grade value in cookies based on selectedClass
-    useEffect(() => {
-        if (selectedClass === "E") {
-            Cookies.set("grade", "P"); // Primary
-        } else if (selectedClass === "M") {
-            Cookies.set("grade", "6"); // Grade 6
-        } else if (selectedClass === "S") {
-            Cookies.set("grade", "3"); // Grade 3
-        } else {
-            Cookies.remove("grade"); // Clear grade if no valid selectedClass
-        }
-    }, [selectedClass]);
+    const [userEmail, setUserEmail] = useState(() => {
+        return Cookies.get("userEmail") || null; // Retrieve email from cookies
+    });
+
 
     // Save states to cookies whenever they change
     useEffect(() => {
-        Cookies.set("authenticated", authenticated);
         Cookies.set("classSelected", classSelected);
         Cookies.set("selectedClass", selectedClass);
-    }, [authenticated, classSelected, selectedClass]);
+    }, [ classSelected, selectedClass]);
 
-    const handleLogin = () => {
-        Cookies.set("authenticated", true);
+    const handleLogin = (email) => {
+        Cookies.set("userEmail", email, { expires: 30 })
+        setUserEmail(email); // Update the userEmail state
         setAuthenticated(true); // Set authenticated to true
         navigate("/"); // Navigate to the main app layout
     };
+
 
     const handleClassSelection = (className) => {
         Cookies.set("classSelected", true);
@@ -75,7 +68,7 @@ function App() {
                     {authenticated ? (
                         classSelected ? (
                             <div className="app">
-                                <Sidebar onLogin={handleLogin} />
+                                <Sidebar userEmail={userEmail} />
                                 <main className="content">
                                     {/* Pass selectedClass to Topbar */}
                                     <Topbar />

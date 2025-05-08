@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('days', function (Blueprint $table) {
+        Schema::create('tuitions', function (Blueprint $table) {
             $table->id(); // Auto-incrementing primary key
-            $table->string('day_name', 10); // Name of the day (e.g., Monday, Tuesday)
+            $table->foreignId('day_id')->constrained('days')->onDelete('cascade'); // Foreign key to days table
+            $table->foreignId('category_id')->constrained('categories')->onDelete('cascade'); // Foreign key to categories table
+            $table->foreignId('class_id')->constrained('classes')->onDelete('cascade'); // Foreign key to classes table
             $table->timestamps(); // Adds created_at and updated_at columns
         });
     }
@@ -23,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('days');
+        Schema::dropIfExists('tuitions');
     }
 };

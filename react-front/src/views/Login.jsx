@@ -21,6 +21,9 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { useEffect } from "react";
 import Cookies from "js-cookie";
+import axiosClient from "../../axios-client.js"; // Import axios client
+import ToastNotification from "../components/ToastNotification.jsx";
+import { ToastContainer } from "react-toastify";
 
 const userSchemaIn = yup.object().shape({
     email: yup.string().email("invalid email").required("required"),
@@ -31,6 +34,7 @@ const userSchemaIn = yup.object().shape({
 const SignIn = ({ onLogin }) => {
     const theme = useTheme();
     const colors = tokens(theme.palette.mode);
+    const themeMode = theme.palette.mode === "dark" ? "dark" : "light";
     const colorMode = useContext(ColorModeContext);
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +62,7 @@ const SignIn = ({ onLogin }) => {
         setShowPassword((prevShowPassword) => !prevShowPassword);
     };
 
-    const handleFormSubmitSignIn = (values) => {
+    const handleFormSubmitSignIn = async (values) => {
         if (rememberMe) {
             // Save email and password to localStorage
             Cookies.set("rememberedEmail", values.email, { expires: 30 });
@@ -71,10 +75,29 @@ const SignIn = ({ onLogin }) => {
 
         // Simulate login
         setIsLoading(true);
-        setTimeout(() => {
+
+        try {
+            const response = await axiosClient.post("/login", {
+                email: values.email,
+                password: values.password,
+            });
+
+            const { token, user } = response.data;
+
+            // Save the token in localStorage
+            localStorage.setItem("ACCESS_TOKEN", token);
+
+            onLogin(user.email);
+        } catch (error) {
+            ToastNotification(error.response?.data?.message, "error", themeMode); // Log the error details
+            console.error(
+                error.response?.data?.message || "Login failed. Please try again.",
+                "error",
+                theme.palette.mode
+            );
+        } finally {
             setIsLoading(false);
-            onLogin(); // Call the onLogin function
-        }, 1000);
+        }
     };
 
     const handleRememberMeChange = (event) => {
@@ -97,7 +120,7 @@ const SignIn = ({ onLogin }) => {
             justifyContent="center"
             height="100vh" // Optionally, if you want to center vertically
         >
-
+            <ToastContainer />
             <Box
                 position="absolute"
                 top={0}
@@ -113,7 +136,7 @@ const SignIn = ({ onLogin }) => {
             <Box
                 p="50px"
                 sx={{
-                    background: theme.palette.mode === "dark" ?"rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.5)",
+                    background: theme.palette.mode === "dark" ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.5)",
                     borderRadius: "10px",
                     backdropFilter: "blur(5px)",
                     boxShadow: "0 25px 45px rgba(0, 0, 0, 0.1)",

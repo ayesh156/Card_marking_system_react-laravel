@@ -13,9 +13,12 @@ const Classes = ({ onClassSelect }) => {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        Cookies.set("authenticated", "false");
-        navigate("/");
-        window.location.reload();
+        localStorage.removeItem("ACCESS_TOKEN"); // Remove the token
+        Cookies.remove("userEmail"); // Remove the email cookie
+        Cookies.remove("classSelected"); // Remove class selection cookie
+        Cookies.remove("selectedClass"); // Remove selected class cookie
+        navigate("/"); // Navigate to the login page
+        window.location.reload(); // Reload the page to reset the state
     };
 
     return (

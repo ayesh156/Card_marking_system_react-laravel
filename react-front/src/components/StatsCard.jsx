@@ -42,7 +42,7 @@ const StatsCard = ({ title, value, subtext, icon, color }) => {
           {icon}
         </Avatar>
       </Box>
-      <Typography variant="caption" sx={{ color: color, fontSize: 12, textAlign: 'right', }}>
+      <Typography variant="caption" sx={{ color: color, fontSize: 12, textAlign: 'right' }}>
         {subtext}
       </Typography>
     </Paper>

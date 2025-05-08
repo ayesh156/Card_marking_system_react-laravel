@@ -17,6 +17,7 @@ import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import Cookies from "js-cookie";
 import axiosClient from "../../../axios-client.js";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 
 const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
@@ -50,7 +51,7 @@ const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
     );
 };
 
-const Sidebar = () => {
+const Sidebar = ({userEmail}) => {
     const theme = useTheme();
     const colors = tokens(theme.palette.mode);
     const navigate = useNavigate();
@@ -60,6 +61,7 @@ const Sidebar = () => {
     const hasGradeSet = useRef(false);
     const [categoriesWithGrades, setCategoriesWithGrades] = useState([]);
     const [expandedCategories, setExpandedCategories] = useState({});
+    const [userDetails, setUserDetails] = useState(null);
 
     useEffect(() => {
         const storedClass = Cookies.get("selectedClass"); // Get the selected class from cookies
@@ -81,17 +83,29 @@ const Sidebar = () => {
             const response = await axiosClient.get('/category-with-grades', {
                 params: { class: selectedClass }, // Replace 'E' with the selected class ('E', 'S', or 'M')
             });
-            // setCategories(response.data.categories);
-            // setGrades(response.data.grades);
-            console.log(response.data.categories, response.data.grades);
+            // console.log(response.data);
             setCategoriesWithGrades(response.data);
         } catch (error) {
             console.error("Error fetching data:", error);
         }
     };
 
+    const fetchUserDetails = async () => {
+        if (userEmail) {
+            try {
+                const response = await axiosClient.get(`/user/${userEmail}`);
+                setUserDetails(response.data); // Set user details in state
+                // console.log(response.data); // Log the user details
+            } catch (error) {
+                console.error("Error fetching user details:", error);
+            }
+        }
+    };
+
     // Function to handle window resize
     useEffect(() => {
+        fetchUserDetails();
+
         const handleResize = () => {
             setIsCollapsed(window.innerWidth <= 767);
         };
@@ -99,9 +113,8 @@ const Sidebar = () => {
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
 
-
-
     }, []);
+
 
     useEffect(() => {
         if (selectedClass) {
@@ -117,45 +130,13 @@ const Sidebar = () => {
     };
 
     const handleLogout = () => {
-        Cookies.set("authenticated", "false"); // Set authenticated to false
-        Cookies.set("classSelected", "false"); // Set classSelected to false
-        navigate("/"); // Navigate to the home page
+        localStorage.removeItem("ACCESS_TOKEN"); // Remove the token
+        Cookies.remove("user_email"); // Remove the email cookie
+        Cookies.remove("classSelected"); // Remove class selection cookie
+        Cookies.remove("selectedClass"); // Remove selected class cookie
+        navigate("/"); // Navigate to the login page
         window.location.reload(); // Reload the page to reset the state
     };
-
-    // // Determine which grades to show based on selectedClass
-    // const getGradeItems = () => {
-    //     if (selectedClass === "E") {
-    //         // Show Primary to Grade 11
-    //         hasGradeSet.current = true;
-    //         return [
-    //             { title: "Primary", to: "/primary" },
-    //             ...Array.from({ length: 11 }, (_, i) => ({
-    //                 title: `Grade${i + 1}`,
-    //                 to: `/grade${i + 1}`,
-    //             })),
-    //         ];
-    //     } else if (selectedClass === "S") {
-    //         // Show Grade 3 to Grade 5
-    //         hasGradeSet.current = true;
-    //         return Array.from({ length: 3 }, (_, i) => ({
-    //             title: `Grade${i + 3}`,
-    //             to: `/grade${i + 3}`,
-    //         }));
-    //     } else if (selectedClass === "M") {
-    //         // Show Grade 6 to Grade 11
-    //         hasGradeSet.current = true;
-    //         return Array.from({ length: 6 }, (_, i) => ({
-    //             title: `Grade${i + 6}`,
-    //             to: `/grade${i + 6}`,
-    //         }));
-    //     }
-    //     return []; // Default to no grades if no class is selected
-    // };
-
-    // const gradeItems = getGradeItems();
-
-
 
     // Refresh the page only once when gradeItems are set
     useEffect(() => {
@@ -214,13 +195,14 @@ const Sidebar = () => {
                         )}
                     </MenuItem>
 
-                    {!isCollapsed && (
+                    {!isCollapsed && userDetails && (
                         <Box mb="5px">
                             <Box display="flex" justifyContent="center" alignItems="center">
                                 <img
                                     width="100px"
                                     height="100px"
-                                    src={"../../assets/logo.jpg"}
+                                    src={userDetails.image_path ? `${API_BASE_URL}/storage/${userDetails.image_path}` : "../../assets/logo.jpg"}
+                                    alt="User Avatar"
                                     style={{ cursor: "pointer", borderRadius: "50%" }}
                                 />
                             </Box>
@@ -231,10 +213,10 @@ const Sidebar = () => {
                                     fontWeight="bold"
                                     sx={{ m: "10px 0 0 0" }}
                                 >
-                                    ZYNERGY
+                                    {userDetails.name || "User"}
                                 </Typography>
                                 <Typography variant="h5" color={colors.greenAccent[500]}>
-                                    zynergyedu@gmail.com
+                                    {userEmail}
                                 </Typography>
                             </Box>
                         </Box>
@@ -295,8 +277,8 @@ const Sidebar = () => {
                                         {category.grades.map((grade, gradeIndex) => {
                                             // Generate route name with the first letter of the category
                                             const categoryPrefix = category.category_name.charAt(0).toLowerCase(); // First letter of category
-                                            const routeName = grade === "Primary"
-                                                ? `${categoryPrefix}p` // Special case for "Primary"
+                                            const routeName = grade === "Nursery"
+                                                ? `${categoryPrefix}n` // Special case for "Primary"
                                                 : `${categoryPrefix}${grade
                                                     .replace(/Grade\s/g, "") // Remove "Grade"
                                                     .replace(/,\s/g, "-") // Replace ", " with "-"

@@ -29,27 +29,32 @@ const Message = () => {
 
     const handleFormSubmit = async (values, { resetForm }) => {
         setIsLoading(true);
-    
-        try {
-            const payload = {
-                message: values.enteredMessage,
-            };
-    
-            // Send the message to the backend
-            const response = await axiosClient.post('/send-whatsapp-messages', payload);
-    
-            // Handle success response
-            console.log("Message sent successfully:", response.data);
-            ToastNotification("Messages sent successfully!", "success", theme.palette.mode);
-    
-            resetForm(); // Clear the form
-        } catch (error) {
-            // Handle error response
-            console.error("Error sending message:", error);
-            ToastNotification("Failed to send messages.", "error", theme.palette.mode);
-        } finally {
-            setIsLoading(false);
-        }
+
+        const payload = {
+            message: values.enteredMessage,
+        };
+
+        axiosClient.post('/send-whatsapp-messages', payload)
+            .then((response) => {
+                // Handle success response
+                // const data = response.data;
+                // console.log("Message sent successfully:", data);
+
+                ToastNotification("Messages sent successfully!", "success", theme.palette.mode);
+
+                // Reset the form after successful submission
+                resetForm();
+            })
+            .catch((error) => {
+                // Handle error response
+                console.error("Error sending message:", error);
+                ToastNotification("Failed to send messages.", "error", theme.palette.mode);
+            })
+            .finally(() => {
+                // Stop the loading spinner
+                setIsLoading(false);
+            });
+
     };
 
     return (
@@ -94,10 +99,10 @@ const Message = () => {
                                 fullWidth
                                 variant="filled"
                                 type="text"
-                                label="Enter your message"
+                                label="Enter Message Template Name"
                                 name="enteredMessage"
                                 multiline
-                                rows={20}
+                                rows={3}
                                 onBlur={handleBlur}
                                 onChange={handleChange}
                                 value={values.enteredMessage}
@@ -134,7 +139,6 @@ const Message = () => {
                                 <Button
                                     endIcon={<RefreshOutlinedIcon />}
                                     variant="contained"
-                                    loading={isLoading}
                                     onClick={() => {
                                         resetForm(); // Use Formik's resetForm to clear the form
                                     }}

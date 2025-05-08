@@ -15,10 +15,11 @@ return new class extends Migration
             $table->id(); // Auto-increment ID
             $table->string('name', 50);
             $table->string('email', 100)->unique();
-            $table->string('password', 20)->nullable();
-            $table->string('Before_Payment_Template', 100)->nullable();
-            $table->string('After_Payment_Template', 100)->nullable();
-            $table->boolean('status')->default(true);
+            $table->string('password', 100)->nullable(); // Updated length to match the schema
+            $table->string('before_payment_week3', 100)->nullable(); // Added this column
+            $table->string('before_payment_week4', 100)->nullable(); // Added this column
+            $table->string('after_payment_template', 100)->nullable(); // Updated column name
+            $table->boolean('status')->default(true); // Default value is true
             $table->string('mode', 1);
             $table->text('image_path')->nullable();
             $table->timestamps(); // Created_at and Updated_at

@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage; // Import Storage facade
+use Illuminate\Support\Facades\Auth;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserController extends Controller
 {
@@ -17,6 +19,56 @@ class UserController extends Controller
     public function index()
     {
         //
+    }
+
+    public function login(Request $request)
+    {
+        // Validate the incoming request
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        // Retrieve the user by email
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'Invalid email or password'], 401);
+        }
+
+        // Check if the user is blocked (status = false)
+        if (!$user->status) {
+            return response()->json([
+                'message' => 'Your account has been blocked. Please contact the administrator for assistance.',
+            ], 403); // 403 Forbidden
+        }
+        
+        // Compare the plain-text password directly (not recommended)
+        if ($request->password !== $user->password) {
+            return response()->json(['message' => 'Invalid email or password'], 401);
+        }
+
+        // Generate a JWT token for the user
+        $token = JWTAuth::fromUser($user);
+
+        // Set the email in a cookie for 30 days
+        $cookie = cookie('user_email', $user->email, 43200); // 43200 minutes = 30 days
+
+        return response()->json([
+            'message' => 'Login successful',
+            'token' => $token,
+            'user' => $user,
+        ])->withCookie($cookie);
+    }
+
+    public function logout()
+    {
+        Auth::logout();
+
+        // Clear the email cookie
+        $cookie = cookie()->forget('user_email');
+
+        return response()->json(['message' => 'Logout successful'])->withCookie($cookie);
     }
 
     public function updateMode(Request $request, string $email)
@@ -46,6 +98,43 @@ class UserController extends Controller
         return response()->json(['mode' => $user->mode]);
     }
 
+    public function updateStatus(Request $request, string $email)
+    {
+        $request->validate([
+            'status' => 'required|boolean',
+        ]);
+
+        $user = User::where('email', $email)->first();
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        $user->status = $request->status;
+        $user->save();
+
+        return response()->json(['message' => 'User status updated successfully']);
+    }
+
+    public function getAllUsers()
+    {
+        try {
+            // Fetch all users except admin@gmail.com
+            $users = User::select('id', 'name', 'email', 'status')
+                ->where('email', '!=', 'admin@gmail.com')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $users,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch users',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
     /**
      * Store a newly created resource in storage.
      */
@@ -92,8 +181,9 @@ class UserController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => $request->password,
-                'Before_Payment_Template' => $request->beforePaymentTemplate,
-                'After_Payment_Template' => $request->afterPaymentTemplate,
+                'before_payment_week3' => $request->beforePaymentWeek3,
+                'before_payment_week4' => $request->beforePaymentWeek4,
+                'after_payment_template' => $request->afterPaymentTemplate,
                 'image_path' => $imagePath,
                 'status' => 1, // Hardcoded as per original logic
                 'mode' => 'D', // Hardcoded as per original logic
@@ -128,7 +218,6 @@ class UserController extends Controller
         }
         return response()->json($user);
     }
-
 
 
     /**

@@ -23,7 +23,7 @@ class StudentReportRequest extends FormRequest
     {
         return [
             'student_id' => 'required|exists:students,id', // Ensure student_id exists in students table
-            'class_id' => 'required|exists:classes,id', // Ensure class_id exists in classes table
+            'tuition_id' => 'required|exists:classes,id', // Ensure class_id exists in classes table
             'year_id' => 'required|exists:years,id', // Ensure year_id exists in years table
             'month_id' => 'required|exists:months,id', // Ensure month_id exists in months table
             'week1' => 'required|boolean', // Validate week1 as a boolean
@@ -32,6 +32,8 @@ class StudentReportRequest extends FormRequest
             'week4' => 'required|boolean', // Validate week4 as a boolean
             'week5' => 'required|boolean', // Validate week5 as a boolean
             'paid' => 'required|boolean', // Validate paid as a boolean
+            'reminder_week3' => 'required|boolean',
+            'reminder_week4' => 'required|boolean',
         ];
     }
 }

@@ -11,8 +11,8 @@ class StudentReport extends Model
 
     protected $fillable = [
         'student_id',
-        'month_id',
         'tuition_id',
+        'month_id',
         'year_id',
         'week1',
         'week2',

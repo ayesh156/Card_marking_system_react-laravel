@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('months', function (Blueprint $table) {
-            $table->id();
-            $table->string('name'); // e.g., January, February, etc.
-            $table->timestamps();
+            $table->id(); // Auto-incrementing primary key
+            $table->string('month', 255); // Month name (e.g., January, February)
+            $table->timestamps(); // Adds created_at and updated_at columns
         });
     }
 

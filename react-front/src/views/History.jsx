@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { Checkbox, useTheme, Box, Button, IconButton, InputBase, MenuItem, TextField, FormControl, Select, InputLabel } from "@mui/material";
+import { Checkbox, useTheme, Box, Button, IconButton, InputBase, MenuItem, Typography, FormControl, Select, InputLabel } from "@mui/material";
 import { tokens } from "../theme";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { ToastContainer } from "react-toastify";
@@ -65,46 +65,46 @@ const GradePage = () => {
     const [filteredChildren, setFilteredChildren] = useState([]); // Filtered list for search
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(false); // Loading state
-    const [selectedClass, setSelectedClass] = useState(null); // State to store selectedClass
-    const theme = useTheme();
+    const [selectedClass, setSelectedClass] = useState(Cookies.get("selectedClass") || ""); const theme = useTheme();
     const colors = tokens(theme.palette.mode);
     const navigate = useNavigate();
     const themeMode = theme.palette.mode === "dark" ? "dark" : "light";
-    const [gradeTitle, setGradeTitle] = useState("Primary");
+    const [gradeTitle, setGradeTitle] = useState("Nursery");
+    const [selectedGrade, setSelectedGrade] = useState('');
     const [currentDate, setCurrentDate] = useState("");
-    const [grade, setGrade] = useState(null);
+    const [grades, setGrades] = useState(null);
     const [isPageLoading, setIsPageLoading] = useState(true);
     const [month, setMonth] = useState('');
     const [year, setYear] = useState('');
     const [years, setYears] = useState([]); // State to store years
     const [months, setMonths] = useState([]);
     const [tableDayHeaders, setDableDayHeaders] = useState([]);
+    const [routeName, setRouteName] = useState('');
 
     // Function to determine which grades to show based on selectedClass
-    const getGradeItems = () => {
-        if (selectedClass === "E") {
-            // Show Primary to Grade 11
-            return [
-                { title: "Primary", value: "P" },
-                ...Array.from({ length: 11 }, (_, i) => ({
-                    title: `Grade ${i + 1}`,
-                    value: `${i + 1}`,
-                })),
-            ];
-        } else if (selectedClass === "S") {
-            // Show Grade 3 to Grade 5
-            return Array.from({ length: 3 }, (_, i) => ({
-                title: `Grade ${i + 3}`,
-                value: `${i + 3}`,
-            }));
-        } else if (selectedClass === "M") {
-            // Show Grade 6 to Grade 11
-            return Array.from({ length: 6 }, (_, i) => ({
-                title: `Grade ${i + 6}`,
-                value: `${i + 6}`,
-            }));
+    const fetchGrades = async () => {
+        try {
+            const response = await axiosClient.post("/grades", {
+                selectedClass, // Send the selected class ID
+            });
+
+            const gradesData = response.data.data || []; // Use the 'data' key from the backend response
+            // console.log("Grades data:", gradesData); // Log the grades data for debugging
+
+            // Update the grades dropdown options
+            setGrades(gradesData);
+
+            // Automatically select the first grade and its corresponding day_id if available
+            if (gradesData.length > 0) {
+                setSelectedGrade(gradesData[0].id || ""); // Set the first grade's ID
+            } else {
+                setSelectedGrade(""); // Reset if no grades are available
+            }
+        } catch (error) {
+            console.error("Error fetching grades:", error);
+            setGrades([]); // Reset grades on error
+            setSelectedGrade(""); // Reset grade on error
         }
-        return []; // Default to no grades if no class is selected
     };
 
     const fetchYearsAndMonths = async () => {
@@ -121,7 +121,7 @@ const GradePage = () => {
             const monthsResponse = await axiosClient.get('/months');
             const formattedMonths = monthsResponse.data.map((month) => ({
                 value: month.id, // Use the `id` as the value
-                name: month.name, // Use the `name` for display
+                name: month.month, // Use the `name` for display
             }));
             setMonths(formattedMonths);
 
@@ -146,18 +146,60 @@ const GradePage = () => {
         setCurrentDate(`${year} ${month}`);
 
         fetchYearsAndMonths();
+        fetchGrades();
 
-        const storedClass = Cookies.get("selectedClass"); // Retrieve selectedClass from cookies
-        setSelectedClass(storedClass || null); // Set it in state or default to null
     }, []);
 
-    // Fetch children data whenever the grade value is updated
+    // Fetch children data whenever the grades value is updated
     useEffect(() => {
-        if (grade && year && month) {
-            fetchFilteredReports(); // Fetch reports when the grade changes
+        if (selectedGrade && year && month) {
+            fetchFilteredReports(); // Fetch reports when the grades changes
         }
-    }, [grade, year, month]); // Trigger this effect whenever the grade changes
+    }, [selectedGrade, year, month]); // Trigger this effect whenever the grades changes
 
+    useEffect(() => {
+        if (selectedGrade && grades) {
+            // Find the grade name based on the selectedGrade ID
+            const selectedGradeObject = grades.find((grade) => grade.id === selectedGrade);
+            if (selectedGradeObject) {
+                const gradeTitle = selectedGradeObject.grade;
+                setGradeTitle(gradeTitle); // Update the gradeTitle state
+
+                // Remove the word "Grade" and split the title into words
+                let words = gradeTitle.replace(/Grade\s*/gi, '').split(' ');
+
+                if (words.length > 1) {
+                    // Get the first character of the last word
+                    const firstCharOfLastWord = words[words.length - 1][0];
+
+                    // Remove the last word
+                    words.pop();
+
+                    // Handle multiple grades separated by commas
+                    words = words.map(word => word.replace(/,/g, '-')); // Replace commas with hyphens
+
+                    // Generate the route name
+                    const route = firstCharOfLastWord + words
+                        .map(word => {
+                            // Check if the word contains a hyphen (indicating multiple numbers)
+                            if (word.includes('-')) {
+                                return word; // Preserve the entire word if it contains a hyphen
+                            }
+                            // Check if the word is a number
+                            return /^\d+$/.test(word.trim()) ? word : word[0];
+                        })
+                        .join(''); // Join the letters/numbers to form the route name
+
+                    // console.log(route); // Log the route name for debugging
+                    setRouteName(route); // Update the routeName state
+                } else {
+                    // Handle cases where there's only one word left after removing "Grade"
+                    const route = /^\d+$/.test(words[0].trim()) ? words[0] : words[0][0];
+                    setRouteName(route);
+                }
+            }
+        }
+    }, [selectedGrade, grades]);
 
     // Handle search input change
     const handleSearchChange = (event) => {
@@ -174,27 +216,27 @@ const GradePage = () => {
     };
 
 
-    useEffect(() => {
-        const gradeItems = getGradeItems();
-        if (gradeItems.length > 0) {
-            setGrade(gradeItems[0].value); // Auto-select the first value
-        }
-    }, [selectedClass]);
-
     const fetchFilteredReports = async () => {
         setLoading(true);
 
         try {
             const response = await axiosClient.get('/history', {
                 params: {
-                    grade,
+                    tuitionId: selectedGrade,
                     year,
                     month,
-                    class: selectedClass,
                 },
             });
 
             const { students, dayHeaders } = response.data;
+
+            if (!students) {
+                // If students is null, only update dayHeaders
+                setDableDayHeaders(dayHeaders);
+                setChildren([]); // Reset children state
+                setFilteredChildren([]); // Reset filteredChildren state
+                return; // Exit the function
+            }
 
             // Filter the response data
             const filteredData = students.filter((child) => {
@@ -208,7 +250,7 @@ const GradePage = () => {
 
                 // Include the child only if:
                 // - status is true, OR
-                // - at least two week is true AND paid is true
+                // - at least two weeks are true OR paid is true
                 return (
                     child.status || (weeksTrueCount >= 2 || child.paid)
                 );
@@ -216,13 +258,14 @@ const GradePage = () => {
 
             // Update the state with the filtered data
             setChildren(filteredData);
-            // console.log(filteredData);
             setFilteredChildren(filteredData);
             setDableDayHeaders(dayHeaders); // Store the calculated day headers
-            // console.log(dayHeaders);
         } catch (error) {
-            ToastNotification(`Error fetching reports: ${error}`, "error", themeMode);
             console.error("Error fetching reports:", error);
+            // Reset states in case of an error
+            setFilteredChildren([]);
+            setChildren([]);
+            setDableDayHeaders([]);
         } finally {
             setLoading(false);
         }
@@ -232,26 +275,18 @@ const GradePage = () => {
     // Modified handlePrintReport function with error handling
     const handlePrintReport = () => {
         try {
-            // Check if filteredChildren exists and has data
-            if (!filteredChildren || filteredChildren.length === 0) {
-                console.error("No student data available");
-                return;
-            }
-
             const doc = new jsPDF();
 
             // Set font to Helvetica
-            doc.setFont("times");
+            doc.setFont("Helvetica");
 
-             // Add outer frame
-        doc.setLineWidth(0.2); // Outer frame line thickness
-        doc.rect(7, 7, doc.internal.pageSize.width - 14, doc.internal.pageSize.height - 14); // Outer frame
-
+            // Add outer frame
+            doc.setLineWidth(0.2); // Outer frame line thickness
+            doc.rect(7, 7, doc.internal.pageSize.width - 14, doc.internal.pageSize.height - 14); // Outer frame
 
             // Title styling
             doc.setFontSize(20);
-            doc.setFont("times", "bold");
-            doc.text(grade === "P" ? "Primary" : `Grade ${grade}`, doc.internal.pageSize.width / 2, 20, { align: "center" });
+            doc.setFont("Helvetica", "bold");
 
             // Find the month name using the selected month ID
             const selectedMonth = months.find((m) => m.value == parseInt(month));
@@ -259,7 +294,7 @@ const GradePage = () => {
 
             // Subtitle with month and year
             doc.setFontSize(16);
-            doc.text(`Theory Class ${monthName} - ${year}`, doc.internal.pageSize.width / 2, 30, { align: "center" });
+            doc.text(`${gradeTitle} ${monthName} - ${year}`, doc.internal.pageSize.width / 2, 30, { align: "center" });
 
             // Create dynamic table headers
             const headers = [
@@ -269,22 +304,21 @@ const GradePage = () => {
             ];
 
             // Prepare student data
-            // Prepare student data
-            const tableData = filteredChildren.map((student, index) => {
-                // Parse the student's created_at date
-                const createdAt = new Date(student.created_at);
+            const tableData = (filteredChildren && filteredChildren.length > 0)
+                ? filteredChildren.map((student, index) => {
+                    const createdAt = new Date(student.created_at);
 
-                // Check each week's attendance and compare with the created_at date
-                return [
-                    { content: (index + 1).toString().padStart(2, '0'), styles: { halign: 'center' } },
-                    { content: student.child_name, styles: { halign: 'left' } },
-                    { content: createdAt > new Date(year, month - 1, 7) ? '-' : (student.week1 ? '1' : '0'), styles: { halign: 'center' } },
-                    { content: createdAt > new Date(year, month - 1, 14) ? '-' : (student.week2 ? '1' : '0'), styles: { halign: 'center' } },
-                    { content: createdAt > new Date(year, month - 1, 21) ? '-' : (student.week3 ? '1' : '0'), styles: { halign: 'center' } },
-                    { content: createdAt > new Date(year, month - 1, 28) ? '-' : (student.week4 ? '1' : '0'), styles: { halign: 'center' } },
-                    { content: createdAt > new Date(year, month - 1, 35) ? '-' : (student.week5 ? '1' : '0'), styles: { halign: 'center' } },
-                ];
-            });
+                    return [
+                        { content: (index + 1).toString().padStart(2, '0'), styles: { halign: 'center' } },
+                        { content: student.child_name, styles: { halign: 'left' } },
+                        { content: createdAt > new Date(year, month - 1, 7) ? '-' : (student.week1 ? '.' : '0'), styles: { halign: 'center' } },
+                        { content: createdAt > new Date(year, month - 1, 14) ? '-' : (student.week2 ? '.' : '0'), styles: { halign: 'center' } },
+                        { content: createdAt > new Date(year, month - 1, 21) ? '-' : (student.week3 ? '.' : '0'), styles: { halign: 'center' } },
+                        { content: createdAt > new Date(year, month - 1, 28) ? '-' : (student.week4 ? '.' : '0'), styles: { halign: 'center' } },
+                        { content: createdAt > new Date(year, month - 1, 35) ? '-' : (student.week5 ? '.' : '0'), styles: { halign: 'center' } },
+                    ];
+                })
+                : []; // Empty body if no student data is available
 
             // Draw the table
             autoTable(doc, {
@@ -293,7 +327,7 @@ const GradePage = () => {
                 startY: 40,
                 theme: 'grid',
                 styles: {
-                    font: 'times',
+                    font: 'Helvetica',
                     fontSize: 10,
                     cellPadding: 2.5,
                     lineWidth: 0.5,
@@ -320,9 +354,28 @@ const GradePage = () => {
                 },
                 tableWidth: 'auto',
                 margin: { left: 30, right: 30 },
+                didDrawCell: (data) => {
+                    // Check if the cell contains a checkmark
+                    if (data.column.index > 1 && data.row.raw[data.column.index]?.content === '.') {
+                        const imagePath = '/assets/checkmark-icon.png'; // Path to your checkmark image
+                        const { x, y, width, height } = data.cell; // Get cell dimensions
+                        const iconSize = 5; // Size of the icon (width and height)
+                
+                        // Calculate the position to center the icon
+                        const centerX = x + (width - iconSize) / 2; // Center horizontally
+                        const centerY = y + (height - iconSize) / 2; // Center vertically
+                
+                        // Add the image to the cell
+                        doc.addImage(imagePath, 'PNG', centerX, centerY, iconSize, iconSize);
+                
+                        // Clear the text content (so the ✔ doesn't appear)
+                        data.cell.text = [];
+                    }
+                },
             });
 
-            doc.save(`Grade_${grade}_Attendance_${month}_${year}.pdf`);
+            // Save the PDF
+            doc.save(`${gradeTitle}_Attendance_${month}_${year}.pdf`);
         } catch (error) {
             console.error("Error generating PDF:", error);
         }
@@ -348,8 +401,11 @@ const GradePage = () => {
                         color: params.row.register ? "#2ECC71" : "#E74C3C", // Green if registered, red if not
                     }}
                     onClick={() => {
-                        navigate(`/${gradeTitle.toLowerCase().replace(" ", "")}/student`, {
-                            state: { child: params.row.child_id }, // Pass the selected child object as state
+                        navigate(`/${routeName.toLowerCase()}/student`, {
+                            state: {
+                                child: params.row.child_id, // Pass the selected child ID
+                                tuitionId: selectedGrade,  // Pass the selected tuitionId
+                            },
                         });
                     }}
                 >
@@ -357,7 +413,26 @@ const GradePage = () => {
                 </Button>
             )
         },
-        { field: "gWhatsapp", headerName: "Contact", flex: 1 },
+        {
+            field: "gWhatsapp",
+            headerName: "Contact",
+            flex: 1,
+            renderCell: (params) => (
+                <Typography
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        paddingTop: "4px",
+                        textAlign: "center",
+                        height: "100%",
+                        color: params.row.special
+                            ? "#F1C40F" : colors.grey[100]
+                    }}
+                >
+                    {params.value}
+                </Typography>
+            ),
+        },
         {
             field: "week1",
             headerName: "Week 1",
@@ -560,15 +635,16 @@ const GradePage = () => {
                         <Select
                             labelId="grade-select-label"
                             id="grade-select"
-                            value={grade || ""}
+                            value={selectedGrade || ""}
                             onChange={(e) => {
-                                setGrade(e.target.value); // Update the grade state
-                                fetchFilteredReports(); // Fetch filtered reports
+                                const newSelectedGrade = e.target.value; // Get the newly selected grade ID
+                                setSelectedGrade(newSelectedGrade); // Update the state with the new grade ID
+                                fetchFilteredReports();
                             }}
                         >
-                            {getGradeItems().map((item) => (
-                                <MenuItem key={item.value} value={item.value}>
-                                    {item.title}
+                            {grades.map((grade) => (
+                                <MenuItem key={grade.id} value={grade.id}>
+                                    {grade.grade} {/* Use the 'grade' key from the backend */}
                                 </MenuItem>
                             ))}
                         </Select>

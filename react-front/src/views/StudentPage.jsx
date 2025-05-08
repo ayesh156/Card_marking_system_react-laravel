@@ -33,8 +33,6 @@ import CircularProgress, {
 import { student } from "../data/mockData.js";
 import debounce from "lodash/debounce";
 
-
-
 const phoneRegExp = /^[0-9]{10}$/; // Adjusted for 10-digit phone numbers
 
 const customerSchema = yup.object().shape({
@@ -174,9 +172,9 @@ const New_Customer = () => {
         if (categoryMap[categoryPrefix]) {
             const categoryName = categoryMap[categoryPrefix];
 
-            // Special case for "P" to display "Primary"
-            if (grades.toLowerCase() === "p") {
-                setPageTitle(isUpdate ? `Update Primary ${categoryName} Student` : `New Primary ${categoryName} Student`);
+            // Special case for "P" to display "Nursery"
+            if (grades.toLowerCase() === "n") {
+                setPageTitle(isUpdate ? `Update Nursery ${categoryName} Student` : `New Nursery ${categoryName} Student`);
             } else {
                 setPageTitle(isUpdate ? `Update Grade ${grades} ${categoryName} Student` : `New Grade ${grades} ${categoryName} Student`);
             }
@@ -334,6 +332,7 @@ const New_Customer = () => {
                             });
                             ToastNotification("Student status updated successfully!", "success", themeMode);
                             setButtonText("Save"); // Reset button text to "Save" after enabling
+                            resetForm(); // Reset the form after enabling
                         } catch (error) {
                             console.error("Error updating student status:", error);
                             ToastNotification("Failed to update student status", "error", themeMode);
@@ -406,6 +405,10 @@ const New_Customer = () => {
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
                                     },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
+                                    },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
                                     },
@@ -475,6 +478,10 @@ const New_Customer = () => {
                                                 "& .MuiInputBase-root": {
                                                     backgroundColor: colors.primary[400],
                                                 },
+                                                "& .MuiInputBase-root.Mui-disabled": {
+                                                    backgroundColor: colors.primary[400], // Change the background color when disabled
+                                                    color: colors.grey[100], // Optional: Change the text color when disabled
+                                                },
                                                 "& .MuiInputBase-root.Mui-hovered": {
                                                     backgroundColor: colors.primary[400],
                                                 },
@@ -541,6 +548,10 @@ const New_Customer = () => {
                                                             gridColumn: "span 4", // This line applies the grid styling
                                                             "& .MuiInputBase-root": {
                                                                 backgroundColor: colors.primary[400],
+                                                            },
+                                                            "& .MuiInputBase-root.Mui-disabled": {
+                                                                backgroundColor: colors.primary[400], // Change the background color when disabled
+                                                                color: colors.grey[100], // Optional: Change the text color when disabled
                                                             },
                                                             "& .MuiInputBase-root.Mui-hovered": {
                                                                 backgroundColor: colors.primary[400],
@@ -611,6 +622,10 @@ const New_Customer = () => {
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
                                     },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
+                                    },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
                                     },
@@ -635,6 +650,10 @@ const New_Customer = () => {
                                     gridColumn: "span 4",
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
                                     },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
@@ -661,6 +680,10 @@ const New_Customer = () => {
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
                                     },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
+                                    },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
                                     },
@@ -685,6 +708,10 @@ const New_Customer = () => {
                                     gridColumn: "span 4",
                                     "& .MuiInputBase-root": {
                                         backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
                                     },
                                     "& .MuiInputBase-root.Mui-hovered": {
                                         backgroundColor: colors.primary[400],
@@ -723,6 +750,10 @@ const New_Customer = () => {
                                         "& .MuiInputBase-root": {
                                             backgroundColor: colors.primary[400],
                                         },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
                                         "& .MuiInputBase-root.Mui-hovered": {
                                             backgroundColor: colors.primary[400],
                                         },
@@ -752,6 +783,10 @@ const New_Customer = () => {
                                         },
                                         "& .MuiInputBase-root": {
                                             backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
                                         },
                                         "& .MuiInputBase-root.Mui-hovered": {
                                             backgroundColor: colors.primary[400],

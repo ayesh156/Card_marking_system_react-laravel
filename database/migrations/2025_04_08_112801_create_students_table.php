@@ -12,24 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('students', function (Blueprint $table) {
-            $table->id();
-            $table->string('sno', 20)->unique(); // varchar(20)
-            $table->string('name', 100);         // varchar(100)
-            $table->text('address1')->nullable(); // text
-            $table->text('address2')->nullable(); // text
-            $table->text('school')->nullable();   // text
-            $table->string('g_name', 100)->nullable(); // varchar(100)
-            $table->string('g_mobile', 10)->nullable(); // varchar(10)
-            $table->string('g_whatsapp', 10)->nullable(); // varchar(10)
-            $table->string('gender', 10)->nullable(); // varchar(10)
-            $table->date('dob')->nullable(); // date
-            $table->boolean('maths')->default(false); // Boolean column for maths
-            $table->boolean('english')->default(false); // Boolean column for english
-            $table->boolean('scholarship')->default(false); // Boolean column for scholarship
-            $table->string('grade', 1)->nullable(); // Grade column with a maximum length of 1
-            $table->timestamps();
+            $table->id(); // Auto-increment ID
+            $table->string('sno', 20)->unique(); // Student number (varchar(20))
+            $table->string('name', 100); // Student name (varchar(100))
+            $table->text('address1')->nullable(); // Address line 1 (text)
+            $table->text('address2')->nullable(); // Address line 2 (text)
+            $table->text('school')->nullable(); // School name (text)
+            $table->string('g_name', 100)->nullable(); // Guardian name (varchar(100))
+            $table->string('g_mobile', 10)->nullable(); // Guardian mobile (varchar(10))
+            $table->string('g_whatsapp', 10)->nullable(); // Guardian WhatsApp (varchar(10))
+            $table->string('gender', 10)->nullable(); // Gender (varchar(10))
+            $table->date('dob')->nullable(); // Date of birth (date)
+            $table->timestamps(); // Created_at and Updated_at
         });
     }
+
     /**
      * Reverse the migrations.
      */
