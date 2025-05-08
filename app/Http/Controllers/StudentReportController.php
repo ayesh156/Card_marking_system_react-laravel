@@ -122,6 +122,16 @@ class StudentReportController extends Controller
             'paid' => 'required|boolean', // Ensure paid status is provided and is a boolean
         ]);
 
+        // **Check for Internet Connection**
+        try {
+            Http::get('https://www.google.com');
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'No internet connection. Please check your connection and try again.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+
         $studentId = $request->child_id;
         $tuitionId = $request->tuition_id;
         $email = $request->email;
@@ -208,6 +218,16 @@ class StudentReportController extends Controller
             'message' => 'required|string', // The message to send
         ]);
 
+        // **Check for Internet Connection**
+        try {
+            Http::get('https://www.google.com');
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'No internet connection. Please check your connection and try again.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+
         $messageTemplate = $request->input('message');
 
         // Retrieve students with status = 1 from the students_has_tuitions table
@@ -252,6 +272,16 @@ class StudentReportController extends Controller
             'message' => 'required|string', // The message to send
             'tuition_id' => 'required|exists:tuitions,id', // Ensure tuition_id exists in the tuitions table
         ]);
+
+        // **Check for Internet Connection**
+        try {
+            Http::get('https://www.google.com');
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'No internet connection. Please check your connection and try again.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
 
         $message = $request->input('message');
         $tuitionId = $request->input('tuition_id');
@@ -336,6 +366,16 @@ class StudentReportController extends Controller
 
         if (!$email) {
             return response()->json(['message' => 'User email is required.'], 400);
+        }
+
+        // **Check for Internet Connection**
+        try {
+            Http::get('https://www.google.com');
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'No internet connection. Please check your connection and try again.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
 
         // Retrieve the before_payment_template value from the users table

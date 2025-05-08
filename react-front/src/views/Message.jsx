@@ -9,6 +9,7 @@ import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import axiosClient from "../../axios-client";
 import ToastNotification from "../components/ToastNotification";
+import { ToastContainer } from "react-toastify";
 
 const customerSchema = yup.object().shape({
     enteredMessage: yup
@@ -46,9 +47,20 @@ const Message = () => {
                 resetForm();
             })
             .catch((error) => {
-                // Handle error response
-                console.error("Error sending message:", error);
-                ToastNotification("Failed to send messages.", "error", theme.palette.mode);
+
+                // Show a toast notification for internet connection error
+                if (!navigator.onLine) {
+                    ToastNotification(
+                        "No internet connection. Please check your connection and try again.",
+                        "error",
+                        theme.palette.mode
+                    );
+                } else {
+                    // Handle error response
+                    console.error("Error sending message:", error);
+                    ToastNotification("Failed to send messages.", "error", theme.palette.mode);
+                }
+
             })
             .finally(() => {
                 // Stop the loading spinner
@@ -59,6 +71,7 @@ const Message = () => {
 
     return (
         <Box m="20px">
+            <ToastContainer />
             <Button
                 sx={{ display: "flex", alignItems: "center" }}
                 color="inherit"

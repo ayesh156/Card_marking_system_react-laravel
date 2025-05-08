@@ -61,7 +61,19 @@ const Dashboard = () => {
                     }
                 })
                 .catch((error) => {
-                    console.error("Error fetching payment reminders:", error);
+                    
+
+                    // Show a toast notification for internet connection error
+                    if (!navigator.onLine) {
+                        ToastNotification(
+                            "No internet connection. Please check your connection and try again.",
+                            "error",
+                            theme.palette.mode
+                        );
+                    } else{
+                        console.error("Error fetching payment reminders:", error);
+                    }
+
                 });
         }
 

@@ -285,8 +285,19 @@ const GradePage = () => {
                 ToastNotification(`Paid status checked!`, "success", themeMode);
             }
         } catch (error) {
-            ToastNotification(`Error updating paid status: ${error}`, "error", themeMode);
-            console.error("Error updating paid status:", error);
+
+            // Show a toast notification for internet connection error
+            if (!navigator.onLine) {
+                ToastNotification(
+                    "No internet connection. Please check your connection and try again.",
+                    "error",
+                    theme.palette.mode
+                );
+            } else{
+                ToastNotification(`Error updating paid status: ${error}`, "error", themeMode);
+                console.error("Error updating paid status:", error);
+            }
+            
         } finally {
             setLoading(false);
         }
@@ -314,8 +325,19 @@ const GradePage = () => {
             ToastNotification("Messages sent successfully!", "success", themeMode);
             // console.log("Response:", response.data);
         } catch (error) {
-            ToastNotification(`Error sending messages: ${error.response?.data?.message || error.message}`, "error", themeMode);
-            console.error("Error sending messages:", error);
+
+            // Show a toast notification for internet connection error
+            if (!navigator.onLine) {
+                ToastNotification(
+                    "No internet connection. Please check your connection and try again.",
+                    "error",
+                    theme.palette.mode
+                );
+            } else{
+                ToastNotification(`Error sending messages: ${error.response?.data?.message || error.message}`, "error", themeMode);
+                console.error("Error sending messages:", error);
+            }
+            
         } finally {
             setSendBtnLoading(false);
             setMessage(""); // Clear the TextField value
@@ -490,6 +512,7 @@ const GradePage = () => {
 
     return (
         <Box m="20px">
+            <ToastContainer />
             <Box
                 sx={{
                     display: "flex",
@@ -634,7 +657,6 @@ const GradePage = () => {
                     },
                 }}
             >
-                <ToastContainer />
                 <DataGrid
                     rows={filteredChildren} // Use the formatted data
                     columns={columns}
