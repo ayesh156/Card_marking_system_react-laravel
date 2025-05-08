@@ -313,7 +313,7 @@ class StudentReportController extends Controller
         $phoneNumber = $this->formatPhoneNumber($phoneNumber);
 
         // WhatsApp API credentials from .env
-        $whatsappApiUrl = env('WHATSAPP_API_URL', 'https://graph.facebook.com/v22.0/627382673793771/messages'); // Default value if not set
+        $whatsappApiUrl = env('WHATSAPP_API_URL', 'https://graph.facebook.com/v22.0/587101311164351/messages'); // Default value if not set
         $accessToken = env('WHATSAPP_ACCESS_TOKEN', ''); // Default to empty if not set
 
         // Send the message using the Meta API
