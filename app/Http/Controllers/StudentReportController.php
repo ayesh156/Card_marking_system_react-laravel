@@ -727,8 +727,15 @@ class StudentReportController extends Controller
             return [$report->student_id => $report->paid];
         });
 
-        // Step 4: Format the response
-        $formattedData = $studentTuitions->map(function ($studentTuition) use ($reportsByStudentId, $studentStatuses, $attendanceByStudentId, $paymentByStudentId) {
+        // Step 4: Identify duplicate WhatsApp numbers globally
+        $globalWhatsappCounts = Student::select('g_whatsapp')
+            ->groupBy('g_whatsapp')
+            ->havingRaw('COUNT(*) >= 3') // Only include WhatsApp numbers with 3 or more occurrences
+            ->pluck('g_whatsapp')
+            ->toArray();
+
+        // Step 5: Format the response
+        $formattedData = $studentTuitions->map(function ($studentTuition) use ($reportsByStudentId, $studentStatuses, $attendanceByStudentId, $paymentByStudentId, $globalWhatsappCounts) {
             $student = $studentTuition->student;
             $report = $reportsByStudentId->get($student->id); // Get the report for the student, if it exists
 
@@ -750,8 +757,11 @@ class StudentReportController extends Controller
             // Determine the 'notPaid' value
             $notPaid = false;
             if (!is_null($weeksAttended) && !is_null($hasPaid)) {
-                $notPaid = $weeksAttended < 2 && !$hasPaid;
+                $notPaid = $weeksAttended >= 2 && !$hasPaid;
             }
+
+            // Determine if the student is special based on global WhatsApp counts
+            $isSpecial = in_array($student->g_whatsapp, $globalWhatsappCounts);
 
             return [
                 'child_id' => $student->id,
@@ -768,6 +778,7 @@ class StudentReportController extends Controller
                 'register' => $isRegistered,                // Add register status
                 'status' => $studentStatuses[$student->id] ?? null, // Fetch the status from 'students_has_tuitions'
                 'notpaid' => $notPaid,                      // Add notpaid status
+                'special' => $isSpecial,                    // Add special status
             ];
         });
 
@@ -776,7 +787,6 @@ class StudentReportController extends Controller
             'dayHeaders' => $dayHeaders, // Include the dayHeaders object in the response
         ]);
     }
-
     /**
      * Helper function to format phone numbers.
      */
