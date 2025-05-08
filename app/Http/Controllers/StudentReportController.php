@@ -124,7 +124,7 @@ class StudentReportController extends Controller
 
         // **Check for Internet Connection**
         try {
-            Http::get('https://www.google.com');
+            Http::withOptions(['verify' => false])->get('https://www.google.com');
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'No internet connection. Please check your connection and try again.',
@@ -220,7 +220,7 @@ class StudentReportController extends Controller
 
         // **Check for Internet Connection**
         try {
-            Http::get('https://www.google.com');
+            Http::withOptions(['verify' => false])->get('https://www.google.com');
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'No internet connection. Please check your connection and try again.',
@@ -275,7 +275,7 @@ class StudentReportController extends Controller
 
         // **Check for Internet Connection**
         try {
-            Http::get('https://www.google.com');
+            Http::withOptions(['verify' => false])->get('https://www.google.com');
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'No internet connection. Please check your connection and try again.',
@@ -370,7 +370,7 @@ class StudentReportController extends Controller
 
         // **Check for Internet Connection**
         try {
-            Http::get('https://www.google.com');
+            Http::withOptions(['verify' => false])->get('https://www.google.com');
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'No internet connection. Please check your connection and try again.',
