@@ -22,17 +22,24 @@ class StudentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sno' => 'required|string|max:255',
-        'name' => 'required|string|max:255',
-        'address1' => 'nullable|string|max:255',
-        'address2' => 'nullable|string|max:255',
-        'school' => 'nullable|string|max:255',
-        'g_name' => 'nullable|string|max:255',
-        'g_mobile' => 'nullable|string|max:15',
-        'g_whatsapp' => 'nullable|string|max:15',
-        'gender' => 'required|string|in:male,female',
-        'dob' => 'nullable|date',
-        'tuitionId' => 'required|exists:tuitions,id', // Ensure tuitionId exists in the tuitions table
+            'sno' => 'required|string|unique:students,sno', // Ensure sno is unique
+            'name' => 'required|string|max:100',
+            'address1' => 'nullable|string',
+            'address2' => 'nullable|string',
+            'school' => 'nullable|string',
+            'g_name' => 'nullable|string|max:100',
+            'g_mobile' => 'nullable|string|max:10',
+            'g_whatsapp' => 'nullable|string|max:10',
+            'gender' => 'nullable|string|max:10',
+            'dob' => 'nullable|date',
+            'tuitionId' => 'required|exists:tuitions,id', // Ensure tuitionId exists in the tuitions table
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'sno.unique' => 'This Student No has already been taken.', // Custom error message for duplicate sno
         ];
     }
 }

@@ -219,28 +219,23 @@ class StudentReportController extends Controller
             return response()->json(['message' => 'No active students found.'], 404);
         }
 
-        // Filter unique students based on their student_id
-        $uniqueStudents = $activeStudents->unique('student_id');
+        // Filter unique WhatsApp numbers from the students
+        $uniqueWhatsAppNumbers = $activeStudents->pluck('student.g_whatsapp')->unique()->filter();
 
-        $responses = []; // To store responses for each student
+        $responses = []; // To store responses for each WhatsApp number
 
-        foreach ($uniqueStudents as $studentTuition) {
-            $student = $studentTuition->student;
+        foreach ($uniqueWhatsAppNumbers as $whatsappNumber) {
+            // Format the phone number (if needed)
+            $formattedPhoneNumber = $this->formatPhoneNumber($whatsappNumber);
 
-            // Check if the student has a valid WhatsApp number
-            if ($student && $student->g_whatsapp) {
-                // Format the phone number (if needed)
-                $formattedPhoneNumber = $this->formatPhoneNumber($student->g_whatsapp);
+            // Send the message using the sendWhatsAppReminder function
+            $response = $this->sendWhatsAppReminder($formattedPhoneNumber, $messageTemplate);
 
-                // Send the message using the sendWhatsAppReminder function
-                $response = $this->sendWhatsAppReminder($student->g_whatsapp, $messageTemplate);
-
-                // Add the response to the responses array
-                $responses[] = [
-                    'student_id' => $student->id,
-                    'phone' => $formattedPhoneNumber,
-                ];
-            }
+            // Add the response to the responses array
+            $responses[] = [
+                'phone' => $formattedPhoneNumber,
+                'response' => $response,
+            ];
         }
 
         // Return the responses
@@ -249,7 +244,6 @@ class StudentReportController extends Controller
             'responses' => $responses,
         ]);
     }
-
 
     public function sendMessageToTuitions(Request $request)
     {
@@ -265,36 +259,31 @@ class StudentReportController extends Controller
         // Retrieve students with status = 1 for the given tuition ID
         $activeStudents = StudentTuition::where('tuition_id', $tuitionId)
             ->where('status', 1)
-            ->with('student') // Eager load the related student
-            ->get();
+            ->pluck('student_id'); // Get only the student IDs
 
         if ($activeStudents->isEmpty()) {
             return response()->json(['message' => 'No active students found for this tuition.'], 404);
         }
 
-        $responses = []; // To store responses for each student
-        $sentNumbers = []; // To track numbers that have already received the message
+        // Retrieve unique WhatsApp numbers from the users table based on the student IDs
+        $uniqueWhatsAppNumbers = Student::whereIn('id', $activeStudents)
+            ->pluck('g_whatsapp')
+            ->unique()
+            ->filter(); // Ensure unique and non-empty WhatsApp numbers
 
-        foreach ($activeStudents as $studentTuition) {
-            $student = $studentTuition->student;
+        $responses = []; // To store responses for each WhatsApp number
 
-            // Check if the student has a valid WhatsApp number and ensure the number hasn't already been sent a message
-            if ($student && $student->g_whatsapp && !in_array($student->g_whatsapp, $sentNumbers)) {
-                // Format the phone number (if needed)
-                $formattedPhoneNumber = $this->formatPhoneNumber($student->g_whatsapp);
+        foreach ($uniqueWhatsAppNumbers as $whatsappNumber) {
+            // Format the phone number (if needed)
+            $formattedPhoneNumber = $this->formatPhoneNumber($whatsappNumber);
 
-                // Send the message using the sendWhatsAppReminder function
-                $this->sendWhatsAppReminder($student->g_whatsapp, $message);
+            // Send the message using the sendWhatsAppReminder function
+            $this->sendWhatsAppReminder($formattedPhoneNumber, $message);
 
-                // Add the response to the responses array
-                $responses[] = [
-                    'student_id' => $student->id,
-                    'phone' => $formattedPhoneNumber,
-                ];
-
-                // Add the number to the sentNumbers array to ensure it doesn't receive the message again
-                $sentNumbers[] = $student->g_whatsapp;
-            }
+            // Add the response to the responses array
+            $responses[] = [
+                'phone' => $formattedPhoneNumber,
+            ];
         }
 
         // Return the responses
@@ -339,6 +328,7 @@ class StudentReportController extends Controller
     }
 
 
+
     public function sendPaymentReminders(Request $request)
     {
         // Retrieve the userEmail from the request
@@ -361,7 +351,7 @@ class StudentReportController extends Controller
         }
 
         // Assign a custom date for testing purposes
-        // $customDate = '2025-05-24'; // Replace this with your desired date
+        // $customDate = '2025-05-17'; // Replace this with your desired date
         // $now = Carbon::parse($customDate); // Parse the custom date
         // $today = $now->startOfDay(); // Use this for today's date
 
@@ -393,6 +383,7 @@ class StudentReportController extends Controller
 
         // Array to store IDs of students who received messages
         $messagedStudentIds = [];
+        $uniqueWhatsAppNumbers = collect(); // To store unique WhatsApp numbers
 
         // Process reminders for each tuition
         foreach ($tuitions as $tuition) {
@@ -422,9 +413,8 @@ class StudentReportController extends Controller
                     $student = $studentReport->student;
 
                     if ($student && $student->g_whatsapp) {
-                        // Send a reminder message via WhatsApp
-                        $this->sendWhatsAppReminder($student->g_whatsapp, $beforePaymentWeek3);
-                        $messagedStudentIds[] = $student->id;
+                        // Add the WhatsApp number to the unique collection
+                        $uniqueWhatsAppNumbers->push($student->g_whatsapp);
 
                         // Mark the reminder as sent
                         $studentReport->reminder_week3 = true;
@@ -449,9 +439,8 @@ class StudentReportController extends Controller
                     $student = $studentReport->student;
 
                     if ($student && $student->g_whatsapp) {
-                        // Send a reminder message via WhatsApp
-                        $this->sendWhatsAppReminder($student->g_whatsapp, $beforePaymentWeek4);
-                        $messagedStudentIds[] = $student->id;
+                        // Add the WhatsApp number to the unique collection
+                        $uniqueWhatsAppNumbers->push($student->g_whatsapp);
 
                         // Mark the reminder as sent
                         $studentReport->reminder_week4 = true;
@@ -459,6 +448,14 @@ class StudentReportController extends Controller
                     }
                 }
             }
+        }
+
+        // Filter unique WhatsApp numbers
+        $uniqueWhatsAppNumbers = $uniqueWhatsAppNumbers->unique();
+
+        // Send messages to unique WhatsApp numbers
+        foreach ($uniqueWhatsAppNumbers as $whatsappNumber) {
+            $this->sendWhatsAppReminder($whatsappNumber, $beforePaymentWeek3); // Use Week 3 template as an example
         }
 
         // Return the response with the list of messaged student IDs
@@ -469,11 +466,10 @@ class StudentReportController extends Controller
             ]);
         } else {
             return response()->json([
-                'message' => 'no',
+                'message' => 'No reminders sent.',
             ]);
         }
     }
-
 
     public function fetchStudentData(Request $request)
     {
