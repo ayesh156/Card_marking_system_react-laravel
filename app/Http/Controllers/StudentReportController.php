@@ -154,6 +154,16 @@ class StudentReportController extends Controller
             return response()->json(['Student or WhatsApp number not found for student ID: $studentId'], 400);
         }
 
+        // Check if the tuition is for an English class by directly querying the class_id
+        $isEnglishClass = Tuition::where('id', $tuitionId)
+            ->where('class_id', function ($query) {
+                $query->select('id')
+                    ->from('classes')
+                    ->where('class_name', 'English')
+                    ->limit(1);
+            })
+            ->exists();
+
         // Retrieve the after_payment_template from the users table
         $afterPaymentTemplate = User::where('email', $email)->value('after_payment_template');
 
@@ -183,8 +193,8 @@ class StudentReportController extends Controller
                 'week5' => false,
             ]);
 
-            // Send WhatsApp reminder if paid status is true
-            if ($request->paid) {
+            // Send WhatsApp reminder if paid status is true and it's an English class
+            if ($request->paid && $isEnglishClass) {
                 $this->sendWhatsAppReminder($student->g_whatsapp, $afterPaymentTemplate);
             }
 
@@ -199,8 +209,8 @@ class StudentReportController extends Controller
             'paid' => $request->paid,
         ]);
 
-        // Send WhatsApp reminder if paid status is true
-        if ($request->paid) {
+        // Send WhatsApp reminder if paid status is true and it's an English class
+        if ($request->paid && $isEnglishClass) {
             $this->sendWhatsAppReminder($student->g_whatsapp, $afterPaymentTemplate);
         }
 
@@ -391,7 +401,7 @@ class StudentReportController extends Controller
         }
 
         // Assign a custom date for testing purposes
-        // $customDate = '2025-05-17'; // Replace this with your desired date
+        // $customDate = '2025-05-14'; // Replace this with your desired date
         // $now = Carbon::parse($customDate); // Parse the custom date
         // $today = $now->startOfDay(); // Use this for today's date
 

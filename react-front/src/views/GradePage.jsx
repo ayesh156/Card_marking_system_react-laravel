@@ -487,7 +487,16 @@ const GradePage = () => {
             renderCell: (params) => (
                 <Checkbox
                     checked={params.row.paid}
-                    onChange={() => handlePaidCheckboxChange(params.row.child_id)}
+                    onChange={() => {
+                        // Show confirmation dialog
+                        const confirmAction = window.confirm(
+                            "Are you sure you want to change the paid status for this student?"
+                        );
+        
+                        if (confirmAction) {
+                            handlePaidCheckboxChange(params.row.child_id);
+                        }
+                    }}
                     sx={{
                         color: params.row.notpaid ? "#E74C3C" : "#F1C40F", // Red if notpaid is true, yellow otherwise
                         "&.Mui-checked": {

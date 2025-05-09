@@ -215,7 +215,7 @@ const Sidebar = ({userEmail}) => {
                                 >
                                     {userDetails.name || "User"}
                                 </Typography>
-                                <Typography variant="h5" color={colors.greenAccent[500]}>
+                                <Typography variant="h5" color={colors.greenAccent[400]}>
                                     {userEmail}
                                 </Typography>
                             </Box>
