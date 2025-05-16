@@ -3,7 +3,7 @@ import { tokens } from "../theme";
 import Header from "../components/Header";
 import { useEffect, useState } from "react";
 import StatsCard from "../components/StatsCard";
-import PeopleIcon from '@mui/icons-material/People';
+import SchoolIcon from '@mui/icons-material/School';
 import Cookies from "js-cookie";
 import axiosClient from "../../axios-client";
 import ToastNotification from "../components/ToastNotification.jsx";
@@ -15,7 +15,6 @@ const Dashboard = () => {
     const [currentDate, setCurrentDate] = useState("");
     const [selectedClass, setSelectedClass] = useState(null);
     const [dashboardData, setDashboardData] = useState([]);
-
 
     useEffect(() => {
         // Format the current date
@@ -61,7 +60,7 @@ const Dashboard = () => {
                     }
                 })
                 .catch((error) => {
-                    
+
 
                     // Show a toast notification for internet connection error
                     if (!navigator.onLine) {
@@ -70,7 +69,7 @@ const Dashboard = () => {
                             "error",
                             theme.palette.mode
                         );
-                    } else{
+                    } else {
                         console.error("Error fetching payment reminders:", error);
                     }
 
@@ -114,9 +113,7 @@ const Dashboard = () => {
                 >
                     {currentDate}
                 </Typography>
-            </Box>
-
-            {/* Stats Cards - Using Flexbox instead of Grid */}
+            </Box>            
             <Box
                 sx={{
                     display: 'flex',
@@ -138,7 +135,7 @@ const Dashboard = () => {
                             title={item.category}
                             value={`${item.grade}`}
                             subtext={`Students: ${item.student_count}`}
-                            icon={<PeopleIcon />}
+                            icon={<SchoolIcon />}
                             color={colors.greenAccent[400]}
                         />
                     </Box>

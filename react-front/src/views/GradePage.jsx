@@ -33,6 +33,7 @@ const GradePage = () => {
     const [message, setMessage] = useState(""); // State to manage the TextField value
     const [tuitionId, setTuitionId] = useState(""); // State to manage the TextField value
     const [userEmail, setUserEmail] = useState(Cookies.get("userEmail") || ""); // Selected class
+    const [selectedChildren, setSelectedChildren] = useState([]); // IDs of selected children
 
 
     // Set the header title based on the location path name
@@ -100,7 +101,15 @@ const GradePage = () => {
             }
 
             // Filter out children with status: false
-            const activeChildren = response.data.students.filter((child) => child.status);
+            const activeChildren = response.data.students
+                .filter((child) => child.status)
+                .map((child) => {
+                    // If gWhatsapp is null/empty and gWhatsapp2 exists, use gWhatsapp2 as gWhatsapp
+                    if ((!child.gWhatsapp || child.gWhatsapp === "") && child.gWhatsapp2) {
+                        return { ...child, gWhatsapp: child.gWhatsapp2 };
+                    }
+                    return child;
+                });
 
             setTuitionId(response.data.tuitionId);
             setChildren(activeChildren); // Set only active children in the state
@@ -293,59 +302,106 @@ const GradePage = () => {
                     "error",
                     theme.palette.mode
                 );
-            } else{
+            } else {
                 ToastNotification(`Error updating paid status: ${error}`, "error", themeMode);
                 console.error("Error updating paid status:", error);
             }
-            
+
         } finally {
             setLoading(false);
         }
     };
 
+    // Handle checkbox selection for rows
+    const handleRowSelection = (childId) => {
+        setSelectedChildren((prevSelected) => {
+            if (prevSelected.includes(childId)) {
+                // If already selected, remove it
+                return prevSelected.filter((id) => id !== childId);
+            } else {
+                // Otherwise, add it
+                return [...prevSelected, childId];
+            }
+        });
+    };
+
+    // Handle "Select All" checkbox
+    const handleSelectAll = (isChecked) => {
+        if (isChecked) {
+            // Select all filtered rows
+            const filteredChildIds = filteredChildren.map((child) => child.child_id);
+            setSelectedChildren((prevSelected) => [
+                ...new Set([...prevSelected, ...filteredChildIds]), // Avoid duplicates
+            ]);
+        } else {
+            // Deselect all filtered rows
+            const filteredChildIds = filteredChildren.map((child) => child.child_id);
+            setSelectedChildren((prevSelected) =>
+                prevSelected.filter((id) => !filteredChildIds.includes(id))
+            );
+        }
+    };
+
+    // Handle sending messages
     const handleSendAll = async () => {
         if (message.trim() === "") {
-            ToastNotification("Message is empty. Please enter a message.", "warning", themeMode);
+            ToastNotification("Message is empty. Please enter a message.", "warning", theme.palette.mode);
             return;
         }
 
         if (!tuitionId) {
-            ToastNotification("Tuition ID is missing. Please try again.", "error", themeMode);
+            ToastNotification("Tuition ID is missing. Please try again.", "error", theme.palette.mode);
             return;
         }
 
         setSendBtnLoading(true);
 
         try {
-            const response = await axiosClient.post("/send-message-to-tuitions", {
+
+            await axiosClient.post("/send-message-to-tuitions", {
                 message,
                 tuition_id: tuitionId,
+                child_ids: selectedChildren,
             });
+            ToastNotification("Messages sent successfully!", "success", theme.palette.mode);
 
-            ToastNotification("Messages sent successfully!", "success", themeMode);
-            // console.log("Response:", response.data);
         } catch (error) {
-
-            // Show a toast notification for internet connection error
-            if (!navigator.onLine) {
-                ToastNotification(
-                    "No internet connection. Please check your connection and try again.",
-                    "error",
-                    theme.palette.mode
-                );
-            } else{
-                ToastNotification(`Error sending messages: ${error.response?.data?.message || error.message}`, "error", themeMode);
-                console.error("Error sending messages:", error);
-            }
-            
+            ToastNotification(`Error sending messages: ${error.response?.data?.message || error.message}`, "error", theme.palette.mode);
+            console.error("Error sending messages:", error);
         } finally {
             setSendBtnLoading(false);
-            setMessage(""); // Clear the TextField value
+            setMessage(""); // Clear the message input
+            setSelectedChildren([]); // Clear the selected students
         }
     };
 
     // Define columns for DataGrid
     const columns = [
+        {
+            field: "select",
+            headerName: (
+                <Checkbox
+                    checked={selectedChildren.length === filteredChildren.length && filteredChildren.length > 0}
+                    indeterminate={selectedChildren.length > 0 && selectedChildren.length < filteredChildren.length}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    sx={{
+                        color: `${colors.grey[100]}`,
+                        "&.Mui-checked": { color: `${colors.grey[100]}` },
+                    }}
+                />
+            ),
+            flex: 0.6,
+            renderCell: (params) => (
+                <Checkbox
+                    checked={selectedChildren.includes(params.row.child_id)}
+                    onChange={() => handleRowSelection(params.row.child_id)}
+                    sx={{
+                        color: `${colors.grey[100]}`,
+                        "&.Mui-checked": { color: `${colors.grey[100]}` },
+                    }}
+                />
+            ),
+        },
         {
             field: "sno",
             headerName: "No.",
@@ -492,7 +548,7 @@ const GradePage = () => {
                         const confirmAction = window.confirm(
                             "Are you sure you want to change the paid status for this student?"
                         );
-        
+
                         if (confirmAction) {
                             handlePaidCheckboxChange(params.row.child_id);
                         }
@@ -670,6 +726,12 @@ const GradePage = () => {
                     rows={filteredChildren} // Use the formatted data
                     columns={columns}
                     loading={loading}
+                    sortModel={[
+                        {
+                            field: "sno", // The field to sort by
+                            sort: "asc", // Sort in ascending order
+                        },
+                    ]}
                     slotProps={{
                         loadingOverlay: {
                             variant: 'linear-progress',
@@ -775,7 +837,7 @@ const GradePage = () => {
                             },
                         }}
                     >
-                        Send All
+                        Send
                     </Button>
                 </Box>
             </Box>

@@ -18,6 +18,7 @@ class Student extends Model
         'g_name',
         'g_mobile',
         'g_whatsapp',
+        'g_whatsapp2',
         'gender',
         'dob',
     ];

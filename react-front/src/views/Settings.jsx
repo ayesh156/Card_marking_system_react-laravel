@@ -7,7 +7,10 @@ import * as yup from "yup";
 import { useNavigate } from "react-router-dom";
 import SaveIcon from "@mui/icons-material/Save";
 import ClearIcon from "@mui/icons-material/Clear";
+import PeopleIcon from '@mui/icons-material/People';
+import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import StatsCard from "../components/StatsCard";
 import Cookies from "js-cookie";
 import axiosClient from "../../axios-client";
 import { ToastContainer } from "react-toastify";
@@ -102,6 +105,8 @@ const Settings = () => {
     const [selectedUser, setSelectedUser] = useState("");
     const [selectedStatus, setSelectedStatus] = useState("");
     const [users, setUsers] = useState([]);
+    const [totalActiveStudents, setTotalActiveStudents] = useState(0);
+    const [totalPaidStudents, setTotalPaidStudents] = useState(0);
 
     // Function to fetch day_id from backend
     const fetchGrades = async () => {
@@ -169,13 +174,25 @@ const Settings = () => {
 
 
 
-
     // Fetch grades on page load
     useEffect(() => {
         fetchGrades();
     }, [selectedClass]);
 
     useEffect(() => {
+        if (selectedClass) {
+            // Fetch total active students and paid students for this month, filtered by selectedClass
+            axiosClient
+                .post("/dashboard-stats", { selectedClass: selectedClass })
+                .then((res) => {
+                    setTotalActiveStudents(res.data.totalActiveStudents);
+                    setTotalPaidStudents(res.data.totalPaidStudents);
+                })
+                .catch((err) => {
+                    console.error("Error fetching dashboard stats:", err);
+                });
+        }
+
         // Replace with the actual user's email (from auth or route)
         axiosClient.get(`/users/${userEmail}`)
             .then(res => {
@@ -313,6 +330,39 @@ const Settings = () => {
                     Settings
                 </Typography>
             </Button>
+            {/* Stats Cards - Using Flexbox instead of Grid */}
+            <Box
+                display="grid"
+                gap="30px"
+                gridTemplateColumns={{
+                    xs: "repeat(1, 1fr)", // 1 column for small screens
+                    sm: "repeat(2, minmax(0, 1fr))"
+                }}
+                sx={{
+                    mt: 5,
+                    gridColumn: "span 4",
+                    marginX: isNonMobile ? "15vw" : undefined,
+                }}
+            >
+                <Box >
+                    <StatsCard
+                        title="Total Students"
+                        value={totalActiveStudents}
+                        subtext="All active students"
+                        icon={<PeopleIcon />}
+                        color={colors.blueAccent[400]}
+                    />
+                </Box>
+                <Box >
+                    <StatsCard
+                        title="Paid Students"
+                        value={totalPaidStudents}
+                        subtext="Students who paid this month"
+                        icon={<PaidOutlinedIcon />}
+                        color={colors.redAccent[400]}
+                    />
+                </Box>
+            </Box>
             <Formik
                 initialValues={initialFormValues}
                 enableReinitialize

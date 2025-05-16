@@ -46,6 +46,71 @@ class StudentReportController extends Controller
         ];
     }
 
+    public function dashboardStats(Request $request)
+    {
+        // Map class codes to their names
+        $classMap = [
+            'E' => 'English',
+            'S' => 'Scholarship',
+            'M' => 'Mathematics',
+        ];
+
+        // Get the selected class from the request
+        $selectedClass = $request->input('selectedClass');
+
+        // If selectedClass is provided as a code, map it to the class name
+        if (isset($classMap[$selectedClass])) {
+            $selectedClassName = $classMap[$selectedClass];
+        } else {
+            $selectedClassName = $selectedClass; // fallback if already a name or null
+        }
+
+        // If selectedClass is provided, filter by class
+        if ($selectedClassName) {
+            $class = ClassModel::where('class_name', $selectedClassName)->first();
+            if (!$class) {
+                return response()->json([
+                    'totalActiveStudents' => 0,
+                    'totalPaidStudents' => 0,
+                ]);
+            }
+            $classId = $class->id;
+
+            // Get all tuition IDs for this class
+            $tuitionIds = Tuition::where('class_id', $classId)->pluck('id');
+
+            // Total active students for this class
+            $totalActiveStudents = StudentTuition::whereIn('tuition_id', $tuitionIds)
+                ->where('status', 1)
+                ->distinct('student_id')
+                ->count('student_id');
+
+            // Get current year and month
+            $now = Carbon::now();
+            $year = Year::where('year', $now->year)->first();
+            $month = Month::where('month', $now->format('F'))->first();
+
+            $totalPaidStudents = 0;
+            if ($year && $month) {
+                $totalPaidStudents = StudentReport::whereIn('tuition_id', $tuitionIds)
+                    ->where('year_id', $year->id)
+                    ->where('month_id', $month->id)
+                    ->where('paid', true)
+                    ->distinct('student_id')
+                    ->count('student_id');
+            }
+
+            return response()->json([
+                'totalActiveStudents' => $totalActiveStudents,
+                'totalPaidStudents' => $totalPaidStudents,
+            ]);
+        }
+        // Optionally, handle the case where no class is selected (return all students)
+        return response()->json([
+            'totalActiveStudents' => 0,
+            'totalPaidStudents' => 0,
+        ]);
+    }
 
     public function weekStatus(Request $request)
     {
@@ -148,10 +213,10 @@ class StudentReportController extends Controller
         $yearId = $currentYearMonth['year_id'];
         $monthId = $currentYearMonth['month_id'];
 
-        // Retrieve the student and their guardian's WhatsApp number
+        // Retrieve the student and their guardian's WhatsApp numbers
         $student = Student::find($studentId);
-        if (!$student || !$student->g_whatsapp) {
-            return response()->json(['Student or WhatsApp number not found for student ID: $studentId'], 400);
+        if (!$student || (!$student->g_whatsapp && !$student->g_whatsapp2)) {
+            return response()->json(['Student or WhatsApp number not found for student ID: ' . $studentId], 400);
         }
 
         // Check if the tuition is for an English class by directly querying the class_id
@@ -178,6 +243,15 @@ class StudentReportController extends Controller
             ->where('month_id', $monthId)
             ->first();
 
+        // Helper: collect all unique WhatsApp numbers (not null, not empty, not duplicate)
+        $numbers = [];
+        if (!empty($student->g_whatsapp)) {
+            $numbers[] = $student->g_whatsapp;
+        }
+        if (!empty($student->g_whatsapp2)) {
+            $numbers[] = $student->g_whatsapp2;
+        }
+
         if (!$childReport) {
             // If no report exists, create a new one
             $childReport = StudentReport::create([
@@ -195,7 +269,9 @@ class StudentReportController extends Controller
 
             // Send WhatsApp reminder if paid status is true and it's an English class
             if ($request->paid && $isEnglishClass) {
-                $this->sendWhatsAppReminder($student->g_whatsapp, $afterPaymentTemplate);
+                foreach ($numbers as $number) {
+                    $this->sendWhatsAppReminder($number, $afterPaymentTemplate);
+                }
             }
 
             return response()->json([
@@ -211,7 +287,9 @@ class StudentReportController extends Controller
 
         // Send WhatsApp reminder if paid status is true and it's an English class
         if ($request->paid && $isEnglishClass) {
-            $this->sendWhatsAppReminder($student->g_whatsapp, $afterPaymentTemplate);
+            foreach ($numbers as $number) {
+                $this->sendWhatsAppReminder($number, $afterPaymentTemplate);
+            }
         }
 
         return response()->json([
@@ -250,18 +328,20 @@ class StudentReportController extends Controller
         }
 
         // Filter unique WhatsApp numbers from the students
-        $uniqueWhatsAppNumbers = $activeStudents->pluck('student.g_whatsapp')->unique()->filter();
+        $uniqueNumbers = collect();
+        foreach ($activeStudents as $studentTuition) {
+            $student = $studentTuition->student;
+            if ($student) {
+                if ($student->g_whatsapp) $uniqueNumbers->push($student->g_whatsapp);
+                if ($student->g_whatsapp2) $uniqueNumbers->push($student->g_whatsapp2);
+            }
+        }
+        $uniqueNumbers = $uniqueNumbers->unique()->filter();
 
-        $responses = []; // To store responses for each WhatsApp number
-
-        foreach ($uniqueWhatsAppNumbers as $whatsappNumber) {
-            // Format the phone number (if needed)
+        $responses = [];
+        foreach ($uniqueNumbers as $whatsappNumber) {
             $formattedPhoneNumber = $this->formatPhoneNumber($whatsappNumber);
-
-            // Send the message using the sendWhatsAppReminder function
             $response = $this->sendWhatsAppReminder($formattedPhoneNumber, $messageTemplate);
-
-            // Add the response to the responses array
             $responses[] = [
                 'phone' => $formattedPhoneNumber,
                 'response' => $response,
@@ -281,6 +361,8 @@ class StudentReportController extends Controller
         $request->validate([
             'message' => 'required|string', // The message to send
             'tuition_id' => 'required|exists:tuitions,id', // Ensure tuition_id exists in the tuitions table
+            'child_ids' => 'nullable|array', // Optional array of child IDs
+            'child_ids.*' => 'exists:students,id', // Ensure each child ID exists in the students table
         ]);
 
         // **Check for Internet Connection**
@@ -295,32 +377,39 @@ class StudentReportController extends Controller
 
         $message = $request->input('message');
         $tuitionId = $request->input('tuition_id');
+        $childIds = $request->input('child_ids', []); // Default to an empty array if not provided
 
-        // Retrieve students with status = 1 for the given tuition ID
-        $activeStudents = StudentTuition::where('tuition_id', $tuitionId)
-            ->where('status', 1)
-            ->pluck('student_id'); // Get only the student IDs
+        // If child_ids is provided, filter students based on their status
+        if (!empty($childIds)) {
+            $activeStudents = StudentTuition::where('tuition_id', $tuitionId)
+                ->whereIn('student_id', $childIds) // Filter by provided child IDs
+                ->where('status', 1) // Only active students
+                ->pluck('student_id'); // Get only the student IDs
+        } else {
+            // If no child_ids are provided, retrieve all active students for the tuition
+            $activeStudents = StudentTuition::where('tuition_id', $tuitionId)
+                ->where('status', 1) // Only active students
+                ->pluck('student_id'); // Get only the student IDs
+        }
 
         if ($activeStudents->isEmpty()) {
             return response()->json(['message' => 'No active students found for this tuition.'], 404);
         }
 
-        // Retrieve unique WhatsApp numbers from the users table based on the student IDs
-        $uniqueWhatsAppNumbers = Student::whereIn('id', $activeStudents)
-            ->pluck('g_whatsapp')
-            ->unique()
-            ->filter(); // Ensure unique and non-empty WhatsApp numbers
+        // Retrieve unique WhatsApp numbers from the students table based on the filtered student IDs
+        $students = Student::whereIn('id', $activeStudents)->get();
 
-        $responses = []; // To store responses for each WhatsApp number
+        $uniqueNumbers = collect();
+        foreach ($students as $student) {
+            if ($student->g_whatsapp) $uniqueNumbers->push($student->g_whatsapp);
+            if ($student->g_whatsapp2) $uniqueNumbers->push($student->g_whatsapp2);
+        }
+        $uniqueNumbers = $uniqueNumbers->unique()->filter();
 
-        foreach ($uniqueWhatsAppNumbers as $whatsappNumber) {
-            // Format the phone number (if needed)
+        $responses = [];
+        foreach ($uniqueNumbers as $whatsappNumber) {
             $formattedPhoneNumber = $this->formatPhoneNumber($whatsappNumber);
-
-            // Send the message using the sendWhatsAppReminder function
             $this->sendWhatsAppReminder($formattedPhoneNumber, $message);
-
-            // Add the response to the responses array
             $responses[] = [
                 'phone' => $formattedPhoneNumber,
             ];
@@ -462,7 +551,10 @@ class StudentReportController extends Controller
                 foreach ($studentsToRemind as $studentReport) {
                     $student = $studentReport->student;
 
-                    if ($student && $student->g_whatsapp) {
+                    if ($student) {
+                        if ($student->g_whatsapp) $uniqueWhatsAppNumbers->push($student->g_whatsapp);
+                        if ($student->g_whatsapp2) $uniqueWhatsAppNumbers->push($student->g_whatsapp2);
+
                         // Add the WhatsApp number to the unique collection
                         $uniqueWhatsAppNumbers->push($student->g_whatsapp);
 
@@ -488,9 +580,9 @@ class StudentReportController extends Controller
                 foreach ($studentsToRemind as $studentReport) {
                     $student = $studentReport->student;
 
-                    if ($student && $student->g_whatsapp) {
-                        // Add the WhatsApp number to the unique collection
-                        $uniqueWhatsAppNumbers->push($student->g_whatsapp);
+                    if ($student) {
+                        if ($student->g_whatsapp) $uniqueWhatsAppNumbers->push($student->g_whatsapp);
+                        if ($student->g_whatsapp2) $uniqueWhatsAppNumbers->push($student->g_whatsapp2);
 
                         // Mark the reminder as sent
                         $studentReport->reminder_week4 = true;
@@ -670,6 +762,7 @@ class StudentReportController extends Controller
                 'sno' => $student->sno,
                 'child_name' => $student->name,
                 'gWhatsapp' => $student->g_whatsapp,
+                'gWhatsapp2' => $student->g_whatsapp2,
                 'week1' => boolval($report->week1 ?? false),
                 'week2' => boolval($report->week2 ?? false),
                 'week3' => boolval($report->week3 ?? false),

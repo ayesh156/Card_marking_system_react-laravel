@@ -44,10 +44,6 @@ const customerSchema = yup.object().shape({
         .string()
         .required("Name is required")
         .max(100, "Name must not exceed 100 characters"),
-    gWhatsapp: yup
-        .string()
-        .required("Guardian's WhatsApp is required")
-        .matches(phoneRegExp, "Guardian's WhatsApp must be a valid 10-digit number"),
 });
 
 
@@ -92,7 +88,7 @@ function FacebookCircularProgress(props) {
     );
 }
 
-const New_Customer = () => {
+const StudentPage = () => {
     const theme = useTheme();
     const colors = tokens(theme.palette.mode);
     const isNonMobile = useMediaQuery("(min-width:800px)");
@@ -110,6 +106,7 @@ const New_Customer = () => {
         gName: "",
         gMobile: "",
         gWhatsapp: "",
+        gWhatsapp2: "",
         gender: "female",
     });
     // Extract the grade or primary from the URL
@@ -223,6 +220,7 @@ const New_Customer = () => {
                         gName: data.g_name || "",
                         gMobile: data.g_mobile || "",
                         gWhatsapp: data.g_whatsapp || "",
+                        gWhatsapp2: data.g_whatsapp2 || "", // <-- Add new field
                         gender: data.gender || "female",
                     });
                     // console.log(data);
@@ -246,6 +244,7 @@ const New_Customer = () => {
             g_name: values.gName || "", // Map gName to g_name
             g_mobile: values.gMobile || "", // Map gMobile to g_mobile
             g_whatsapp: values.gWhatsapp || "", // Map gWhatsapp to g_whatsapp
+            g_whatsapp2: values.gWhatsapp2 || "",
         };
 
         try {
@@ -343,410 +342,289 @@ const New_Customer = () => {
                     }
                 }}
             >
-                {({ values, errors, touched, handleBlur, handleChange, handleSubmit, resetForm, isValid, setFieldValue }) => (
-                    <form onSubmit={handleSubmit}>
-                        <Box
-                            display="grid"
-                            gap="30px"
-                            gridTemplateColumns="repeat(4, minmax(0, 1fr))"
-                            sx={{
-                                mt: 5,
-                                gridColumn: "span 4",
-                                marginX: isNonMobile ? "15vw" : undefined,
-                            }}
-                        >
-                            <TextField
-                                fullWidth
-                                variant="filled"
-                                type="text"
-                                label="Student No"
-                                onBlur={handleBlur}
-                                onChange={handleChange}
-                                name="sno"
-                                error={touched.sno && Boolean(errors.sno)}
-                                helperText={touched.sno && errors.sno}
-                                value={values.sno}
-                                disabled={isUpdate}
-                                sx={{
-                                    gridColumn: "span 4",
-                                    "& .MuiInputBase-root": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-disabled": {
-                                        backgroundColor: colors.primary[400], // Change the background color when disabled
-                                        color: colors.grey[100], // Optional: Change the text color when disabled
-                                    },
-                                    "& .MuiInputBase-root.Mui-hovered": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-focused": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputLabel-root.Mui-focused": {
-                                        color: colors.primary[100],
-                                    },
-                                }}
-                            />
+                {({ values, errors, touched, handleBlur, handleChange, handleSubmit, resetForm, isValid, setFieldValue }) => {
+                    useEffect(() => {
+                        if (!values.name) {
+                            setButtonText("Save");
+                        }
+                    }, [values.name]);
 
-
-                            {isUpdate ? (<TextField
-                                fullWidth
-                                variant="filled"
-                                type="text"
-                                label="Name"
-                                onBlur={handleBlur}
-                                onChange={handleChange}
-                                name="name"
-                                value={values.name}
-                                error={touched.name && Boolean(errors.name)}
-                                helperText={touched.name && errors.name}
-                                sx={{
-                                    gridColumn: "span 4",
-                                    "& .MuiInputBase-root": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-disabled": {
-                                        backgroundColor: colors.primary[400], // Change the background color when disabled
-                                        color: colors.grey[100], // Optional: Change the text color when disabled
-                                    },
-                                    "& .MuiInputBase-root.Mui-hovered": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-focused": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputLabel-root.Mui-focused": {
-                                        color: colors.primary[100],
-                                    },
-                                }}
-                            />) : (
-                                <Autocomplete
-                                    fullWidth
-                                    freeSolo
-                                    options={suggestions}
-                                    getOptionLabel={(option) => (typeof option === "string" ? option : option.name)}
-                                    onInputChange={(event, newInputValue) => {
-                                        setFieldValue("name", newInputValue);
-                                        fetchSuggestions(newInputValue);
-                                    }}
-                                    onChange={(event, newValue) => {
-                                        if (newValue) {
-                                            // If a suggestion is selected, update the necessary fields
-                                            setFieldValue("name", typeof newValue === "string" ? newValue : newValue.name);
-                                            setFieldValue("sno", newValue.sno || ""); // Update Student No
-                                            setFieldValue("dob", newValue.dob || ""); // Update Date of Birth
-                                            setFieldValue("address1", newValue.address1 || ""); // Update Address Line 1
-                                            setFieldValue("address2", newValue.address2 || ""); // Update Address Line 2
-                                            setFieldValue("school", newValue.school || ""); // Update School
-                                            setFieldValue("gName", newValue.g_name || ""); // Update Guardian's Name
-                                            setFieldValue("gMobile", newValue.g_mobile || ""); // Update Guardian's Mobile
-                                            setFieldValue("gWhatsapp", newValue.g_whatsapp || ""); // Update Guardian's WhatsApp
-                                            setFieldValue("gender", newValue.gender || "female"); // Update Gender
-                                            setButtonText("Enable");
-                                        }
-                                    }}
-                                    renderOption={(props, option) => {
-                                        const { key, ...rest } = props; // Extract the key from props
-                                        return (
-                                            <li key={key} {...rest}>
-                                                {option.name} (S.No: {option.sno})
-                                            </li>
-                                        );
-                                    }}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            variant="filled"
-                                            label="Name"
-                                            name="name"
-                                            onBlur={handleBlur}
-                                            error={touched.name && Boolean(errors.name)}
-                                            helperText={touched.name && errors.name}
-                                            InputProps={{
-                                                ...params.InputProps,
-                                                endAdornment: (
-                                                    <>
-                                                        {isFetchingSuggestions ? (
-                                                            <CircularProgress color="inherit" size={20} />
-                                                        ) : null}
-                                                        {params.InputProps.endAdornment}
-                                                    </>
-                                                ),
-                                            }}
-                                            sx={{
-                                                width: "100%",
-                                                "& .MuiInputBase-root": {
-                                                    backgroundColor: colors.primary[400],
-                                                },
-                                                "& .MuiInputBase-root.Mui-disabled": {
-                                                    backgroundColor: colors.primary[400], // Change the background color when disabled
-                                                    color: colors.grey[100], // Optional: Change the text color when disabled
-                                                },
-                                                "& .MuiInputBase-root.Mui-hovered": {
-                                                    backgroundColor: colors.primary[400],
-                                                },
-                                                "& .MuiInputBase-root.Mui-focused": {
-                                                    backgroundColor: colors.primary[400],
-                                                },
-                                                "& .MuiInputLabel-root.Mui-focused": {
-                                                    color: colors.primary[100],
-                                                },
-                                            }}
-                                        />
-                                    )}
-                                    sx={{
-                                        gridColumn: "span 4", // Ensure it spans 4 columns in the grid
-                                        width: "100%", // Explicitly set the width to 100%
-                                    }}
-                                />
-                            )}
-
-                            <Box sx={{
-                                display: "flex", gap: "20px", marginTop: "10px", gridColumn: "span 4",
-                                width: "100%",      // Ensure it takes full width up to the max width
-                                flexWrap: "wrap",
-                                // Media query for small screens
-                                "@media (max-width: 1150px)": {
-                                    flexDirection: "column", // Stack items vertically
-                                    gap: "10px", // Reduce gap between elements on small screens
-                                },
-                            }}>
-                                <Box sx={{
-                                    display: "flex",
-                                    flexDirection: "row",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "10px",
-                                    flex: 1,
-                                    maxWidth: "50%",
-                                    "@media (max-width: 1150px)": {
-                                        maxWidth: "100%",
-                                    }
-                                }}>
-                                    <LocalizationProvider dateAdapter={AdapterDayjs}>
-                                        <DemoContainer components={["DatePicker"]}>
-                                            <DatePicker
-                                                value={values.dob ? dayjs(values.dob) : null} // Convert Formik's string value to a Dayjs object
-                                                onChange={(newValue) => {
-                                                    handleChange({
-                                                        target: {
-                                                            name: "dob",
-                                                            value: newValue ? newValue.format("YYYY-MM-DD") : "", // Convert Dayjs object to string
-                                                        },
-                                                    });
-                                                }}
-                                                label="Date of Birth"
-                                                format="YYYY-MM-DD"
-                                                slotProps={{
-                                                    textField: {
-                                                        fullWidth: true,
-                                                        variant: "filled",
-                                                        name: "dob",
-                                                        onBlur: handleBlur,
-                                                        sx: {
-                                                            minWidth: "600px",
-                                                            gridColumn: "span 4", // This line applies the grid styling
-                                                            "& .MuiInputBase-root": {
-                                                                backgroundColor: colors.primary[400],
-                                                            },
-                                                            "& .MuiInputBase-root.Mui-disabled": {
-                                                                backgroundColor: colors.primary[400], // Change the background color when disabled
-                                                                color: colors.grey[100], // Optional: Change the text color when disabled
-                                                            },
-                                                            "& .MuiInputBase-root.Mui-hovered": {
-                                                                backgroundColor: colors.primary[400],
-                                                            },
-                                                            "& .MuiInputBase-root.Mui-focused": {
-                                                                backgroundColor: colors.primary[400],
-                                                            },
-                                                            "& .MuiInputLabel-root.Mui-focused": {
-                                                                color: colors.primary[100],
-                                                            },
-                                                        },
-                                                    },
-                                                }}
-                                            />
-                                        </DemoContainer>
-                                    </LocalizationProvider>
-                                </Box>
-                                <Box sx={{
-                                    display: "flex",
-                                    flexDirection: "row",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "30px",
-                                    flex: 1,
-                                    maxWidth: "50%",
-                                    "@media (max-width: 1150px)": {
-                                        maxWidth: "100%",
-                                        mt: "20px"
-                                    },
-                                    "@media (max-width: 767px)": {
-                                        gap: "10px",
-                                    }
-                                }}>
-                                    <FormLabel>Gender : </FormLabel>
-                                    <RadioGroup
-                                        row
-                                        name="gender"
-                                        onChange={handleChange}
-                                        value={values.gender}
-                                        sx={{
-                                            display: "flex", gap: "10px", justifyContent: "space-between", "@media (max-width: 767px)": {
-                                                gap: "0px",
-                                            }
-                                        }}
-                                    >
-                                        <FormControlLabel value="female" control={<Radio sx={{
-                                            color: "white",
-                                            "&.Mui-checked": { color: "white" },
-                                        }} />} label="Female" />
-                                        <FormControlLabel value="male" control={<Radio sx={{
-                                            color: "white",
-                                            "&.Mui-checked": { color: "white" },
-                                        }} />} label="Male" />
-                                    </RadioGroup>
-                                </Box>
-                            </Box>
-                            <TextField
-                                fullWidth
-                                variant="filled"
-                                type="text"
-                                label="Address line 1"
-                                onBlur={handleBlur}
-                                onChange={handleChange}
-                                value={values.address1}
-                                name="address1"
-                                sx={{
-                                    gridColumn: "span 4",
-                                    "& .MuiInputBase-root": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-disabled": {
-                                        backgroundColor: colors.primary[400], // Change the background color when disabled
-                                        color: colors.grey[100], // Optional: Change the text color when disabled
-                                    },
-                                    "& .MuiInputBase-root.Mui-hovered": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-focused": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputLabel-root.Mui-focused": {
-                                        color: colors.primary[100],
-                                    },
-                                }}
-                            />
-                            <TextField
-                                fullWidth
-                                variant="filled"
-                                type="text"
-                                label="Address line 2"
-                                onBlur={handleBlur}
-                                onChange={handleChange}
-                                value={values.address2}
-                                name="address2"
-                                sx={{
-                                    gridColumn: "span 4",
-                                    "& .MuiInputBase-root": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-disabled": {
-                                        backgroundColor: colors.primary[400], // Change the background color when disabled
-                                        color: colors.grey[100], // Optional: Change the text color when disabled
-                                    },
-                                    "& .MuiInputBase-root.Mui-hovered": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-focused": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputLabel-root.Mui-focused": {
-                                        color: colors.primary[100],
-                                    },
-                                }}
-                            />
-                            <TextField
-                                fullWidth
-                                variant="filled"
-                                type="text"
-                                label="School"
-                                onBlur={handleBlur}
-                                onChange={handleChange}
-                                name="school"
-                                value={values.school}
-                                sx={{
-                                    gridColumn: "span 4",
-                                    "& .MuiInputBase-root": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-disabled": {
-                                        backgroundColor: colors.primary[400], // Change the background color when disabled
-                                        color: colors.grey[100], // Optional: Change the text color when disabled
-                                    },
-                                    "& .MuiInputBase-root.Mui-hovered": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-focused": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputLabel-root.Mui-focused": {
-                                        color: colors.primary[100],
-                                    },
-                                }}
-                            />
-                            <TextField
-                                fullWidth
-                                variant="filled"
-                                type="text"
-                                label="Guardian’s Name"
-                                onBlur={handleBlur}
-                                onChange={handleChange}
-                                name="gName"
-                                value={values.gName}
-                                sx={{
-                                    gridColumn: "span 4",
-                                    "& .MuiInputBase-root": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-disabled": {
-                                        backgroundColor: colors.primary[400], // Change the background color when disabled
-                                        color: colors.grey[100], // Optional: Change the text color when disabled
-                                    },
-                                    "& .MuiInputBase-root.Mui-hovered": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputBase-root.Mui-focused": {
-                                        backgroundColor: colors.primary[400],
-                                    },
-                                    "& .MuiInputLabel-root.Mui-focused": {
-                                        color: colors.primary[100],
-                                    },
-                                }}
-                            />
-
+                    return (
+                        <form onSubmit={handleSubmit}>
                             <Box
                                 display="grid"
                                 gap="30px"
                                 gridTemplateColumns="repeat(4, minmax(0, 1fr))"
                                 sx={{
+                                    mt: 5,
                                     gridColumn: "span 4",
+                                    marginX: isNonMobile ? "15vw" : undefined,
                                 }}
                             >
                                 <TextField
                                     fullWidth
                                     variant="filled"
                                     type="text"
-                                    label="Guardian’s Mobile"
+                                    label="Student No"
                                     onBlur={handleBlur}
                                     onChange={handleChange}
-                                    name="gMobile"
-                                    value={values.gMobile}
+                                    name="sno"
+                                    error={touched.sno && Boolean(errors.sno)}
+                                    helperText={touched.sno && errors.sno}
+                                    value={values.sno}
+                                    disabled={isUpdate}
                                     sx={{
-                                        gridColumn: "span 2",
-                                        "@media (max-width: 1150px)": {
-                                            gridColumn: "span 4",// Reduce gap between elements on small screens
+                                        gridColumn: "span 4",
+                                        "& .MuiInputBase-root": {
+                                            backgroundColor: colors.primary[400],
                                         },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-focused": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputLabel-root.Mui-focused": {
+                                            color: colors.primary[100],
+                                        },
+                                    }}
+                                />
+
+
+                                {isUpdate ? (<TextField
+                                    fullWidth
+                                    variant="filled"
+                                    type="text"
+                                    label="Name"
+                                    onBlur={handleBlur}
+                                    onChange={handleChange}
+                                    name="name"
+                                    value={values.name}
+                                    error={touched.name && Boolean(errors.name)}
+                                    helperText={touched.name && errors.name}
+                                    sx={{
+                                        gridColumn: "span 4",
+                                        "& .MuiInputBase-root": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-focused": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputLabel-root.Mui-focused": {
+                                            color: colors.primary[100],
+                                        },
+                                    }}
+                                />) : (
+                                    <Autocomplete
+                                        fullWidth
+                                        freeSolo
+                                        options={suggestions}
+                                        getOptionLabel={(option) => (typeof option === "string" ? option : option.name)}
+                                        onInputChange={(event, newInputValue) => {
+                                            setFieldValue("name", newInputValue);
+                                            fetchSuggestions(newInputValue);
+                                        }}
+                                        onChange={(event, newValue) => {
+                                            if (newValue) {
+                                                // If a suggestion is selected, update the necessary fields
+                                                setFieldValue("name", typeof newValue === "string" ? newValue : newValue.name);
+                                                setFieldValue("sno", newValue.sno || ""); // Update Student No
+                                                setFieldValue("dob", newValue.dob || ""); // Update Date of Birth
+                                                setFieldValue("address1", newValue.address1 || ""); // Update Address Line 1
+                                                setFieldValue("address2", newValue.address2 || ""); // Update Address Line 2
+                                                setFieldValue("school", newValue.school || ""); // Update School
+                                                setFieldValue("gName", newValue.g_name || ""); // Update Guardian's Name
+                                                setFieldValue("gMobile", newValue.g_mobile || ""); // Update Guardian's Mobile
+                                                setFieldValue("gWhatsapp", newValue.g_whatsapp || ""); // Update Guardian's WhatsApp
+                                                setFieldValue("gender", newValue.gender || "female"); // Update Gender
+                                                setButtonText("Enable");
+                                            }
+                                        }}
+                                        renderOption={(props, option) => {
+                                            const { key, ...rest } = props; // Extract the key from props
+                                            return (
+                                                <li key={key} {...rest}>
+                                                    {option.name} (S.No: {option.sno})
+                                                </li>
+                                            );
+                                        }}
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                variant="filled"
+                                                label="Name"
+                                                name="name"
+                                                onBlur={handleBlur}
+                                                error={touched.name && Boolean(errors.name)}
+                                                helperText={touched.name && errors.name}
+                                                InputProps={{
+                                                    ...params.InputProps,
+                                                    endAdornment: (
+                                                        <>
+                                                            {isFetchingSuggestions ? (
+                                                                <CircularProgress color="inherit" size={20} />
+                                                            ) : null}
+                                                            {params.InputProps.endAdornment}
+                                                        </>
+                                                    ),
+                                                }}
+                                                sx={{
+                                                    width: "100%",
+                                                    "& .MuiInputBase-root": {
+                                                        backgroundColor: colors.primary[400],
+                                                    },
+                                                    "& .MuiInputBase-root.Mui-disabled": {
+                                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                                        color: colors.grey[100], // Optional: Change the text color when disabled
+                                                    },
+                                                    "& .MuiInputBase-root.Mui-hovered": {
+                                                        backgroundColor: colors.primary[400],
+                                                    },
+                                                    "& .MuiInputBase-root.Mui-focused": {
+                                                        backgroundColor: colors.primary[400],
+                                                    },
+                                                    "& .MuiInputLabel-root.Mui-focused": {
+                                                        color: colors.primary[100],
+                                                    },
+                                                }}
+                                            />
+                                        )}
+                                        sx={{
+                                            gridColumn: "span 4", // Ensure it spans 4 columns in the grid
+                                            width: "100%", // Explicitly set the width to 100%
+                                        }}
+                                    />
+                                )}
+
+                                <Box sx={{
+                                    display: "flex", gap: "20px", marginTop: "10px", gridColumn: "span 4",
+                                    width: "100%",      // Ensure it takes full width up to the max width
+                                    flexWrap: "wrap",
+                                    // Media query for small screens
+                                    "@media (max-width: 1150px)": {
+                                        flexDirection: "column", // Stack items vertically
+                                        gap: "10px", // Reduce gap between elements on small screens
+                                    },
+                                }}>
+                                    <Box sx={{
+                                        display: "flex",
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "10px",
+                                        flex: 1,
+                                        maxWidth: "50%",
+                                        "@media (max-width: 1150px)": {
+                                            maxWidth: "100%",
+                                        }
+                                    }}>
+                                        <LocalizationProvider dateAdapter={AdapterDayjs}>
+                                            <DemoContainer components={["DatePicker"]}>
+                                                <DatePicker
+                                                    value={values.dob ? dayjs(values.dob) : null} // Convert Formik's string value to a Dayjs object
+                                                    onChange={(newValue) => {
+                                                        handleChange({
+                                                            target: {
+                                                                name: "dob",
+                                                                value: newValue ? newValue.format("YYYY-MM-DD") : "", // Convert Dayjs object to string
+                                                            },
+                                                        });
+                                                    }}
+                                                    label="Date of Birth"
+                                                    format="YYYY-MM-DD"
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            variant: "filled",
+                                                            name: "dob",
+                                                            onBlur: handleBlur,
+                                                            sx: {
+                                                                minWidth: "600px",
+                                                                gridColumn: "span 4", // This line applies the grid styling
+                                                                "& .MuiInputBase-root": {
+                                                                    backgroundColor: colors.primary[400],
+                                                                },
+                                                                "& .MuiInputBase-root.Mui-disabled": {
+                                                                    backgroundColor: colors.primary[400], // Change the background color when disabled
+                                                                    color: colors.grey[100], // Optional: Change the text color when disabled
+                                                                },
+                                                                "& .MuiInputBase-root.Mui-hovered": {
+                                                                    backgroundColor: colors.primary[400],
+                                                                },
+                                                                "& .MuiInputBase-root.Mui-focused": {
+                                                                    backgroundColor: colors.primary[400],
+                                                                },
+                                                                "& .MuiInputLabel-root.Mui-focused": {
+                                                                    color: colors.primary[100],
+                                                                },
+                                                            },
+                                                        },
+                                                    }}
+                                                />
+                                            </DemoContainer>
+                                        </LocalizationProvider>
+                                    </Box>
+                                    <Box sx={{
+                                        display: "flex",
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "30px",
+                                        flex: 1,
+                                        maxWidth: "50%",
+                                        "@media (max-width: 1150px)": {
+                                            maxWidth: "100%",
+                                            mt: "20px"
+                                        },
+                                        "@media (max-width: 767px)": {
+                                            gap: "10px",
+                                        }
+                                    }}>
+                                        <FormLabel>Gender : </FormLabel>
+                                        <RadioGroup
+                                            row
+                                            name="gender"
+                                            onChange={handleChange}
+                                            value={values.gender}
+                                            sx={{
+                                                display: "flex", gap: "10px", justifyContent: "space-between", "@media (max-width: 767px)": {
+                                                    gap: "0px",
+                                                }
+                                            }}
+                                        >
+                                            <FormControlLabel value="female" control={<Radio sx={{
+                                                color: "white",
+                                                "&.Mui-checked": { color: "white" },
+                                            }} />} label="Female" />
+                                            <FormControlLabel value="male" control={<Radio sx={{
+                                                color: "white",
+                                                "&.Mui-checked": { color: "white" },
+                                            }} />} label="Male" />
+                                        </RadioGroup>
+                                    </Box>
+                                </Box>
+                                <TextField
+                                    fullWidth
+                                    variant="filled"
+                                    type="text"
+                                    label="Address line 1"
+                                    onBlur={handleBlur}
+                                    onChange={handleChange}
+                                    value={values.address1}
+                                    name="address1"
+                                    sx={{
+                                        gridColumn: "span 4",
                                         "& .MuiInputBase-root": {
                                             backgroundColor: colors.primary[400],
                                         },
@@ -769,18 +647,13 @@ const New_Customer = () => {
                                     fullWidth
                                     variant="filled"
                                     type="text"
-                                    label="Guardian’s Whatsapp"
+                                    label="Address line 2"
                                     onBlur={handleBlur}
                                     onChange={handleChange}
-                                    value={values.gWhatsapp}
-                                    error={touched.gWhatsapp && Boolean(errors.gWhatsapp)}
-                                    helperText={touched.gWhatsapp && errors.gWhatsapp}
-                                    name="gWhatsapp"
+                                    value={values.address2}
+                                    name="address2"
                                     sx={{
-                                        gridColumn: "span 2",
-                                        "@media (max-width: 1150px)": {
-                                            gridColumn: "span 4",// Reduce gap between elements on small screens
-                                        },
+                                        gridColumn: "span 4",
                                         "& .MuiInputBase-root": {
                                             backgroundColor: colors.primary[400],
                                         },
@@ -799,42 +672,206 @@ const New_Customer = () => {
                                         },
                                     }}
                                 />
+                                <TextField
+                                    fullWidth
+                                    variant="filled"
+                                    type="text"
+                                    label="School"
+                                    onBlur={handleBlur}
+                                    onChange={handleChange}
+                                    name="school"
+                                    value={values.school}
+                                    sx={{
+                                        gridColumn: "span 4",
+                                        "& .MuiInputBase-root": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-focused": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputLabel-root.Mui-focused": {
+                                            color: colors.primary[100],
+                                        },
+                                    }}
+                                />
+                                <TextField
+                                    fullWidth
+                                    variant="filled"
+                                    type="text"
+                                    label="Guardian’s Name"
+                                    onBlur={handleBlur}
+                                    onChange={handleChange}
+                                    name="gName"
+                                    value={values.gName}
+                                    sx={{
+                                        gridColumn: "span 4",
+                                        "& .MuiInputBase-root": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-focused": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputLabel-root.Mui-focused": {
+                                            color: colors.primary[100],
+                                        },
+                                    }}
+                                />
+
+                                <Box
+                                    display="grid"
+                                    gap="30px"
+                                    gridTemplateColumns="repeat(4, minmax(0, 1fr))"
+                                    sx={{
+                                        gridColumn: "span 4",
+                                    }}
+                                >
+                                    <TextField
+                                        fullWidth
+                                        variant="filled"
+                                        type="text"
+                                        label="Guardian’s Mobile"
+                                        onBlur={handleBlur}
+                                        onChange={handleChange}
+                                        name="gMobile"
+                                        value={values.gMobile}
+                                        sx={{
+                                            gridColumn: "span 2",
+                                            "@media (max-width: 1150px)": {
+                                                gridColumn: "span 4",// Reduce gap between elements on small screens
+                                            },
+                                            "& .MuiInputBase-root": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputBase-root.Mui-disabled": {
+                                                backgroundColor: colors.primary[400], // Change the background color when disabled
+                                                color: colors.grey[100], // Optional: Change the text color when disabled
+                                            },
+                                            "& .MuiInputBase-root.Mui-hovered": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputBase-root.Mui-focused": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputLabel-root.Mui-focused": {
+                                                color: colors.primary[100],
+                                            },
+                                        }}
+                                    />
+                                    <TextField
+                                        fullWidth
+                                        variant="filled"
+                                        type="text"
+                                        label="Guardian’s Whatsapp"
+                                        onBlur={handleBlur}
+                                        onChange={handleChange}
+                                        value={values.gWhatsapp}
+                                        name="gWhatsapp"
+                                        sx={{
+                                            gridColumn: "span 2",
+                                            "@media (max-width: 1150px)": {
+                                                gridColumn: "span 4",// Reduce gap between elements on small screens
+                                            },
+                                            "& .MuiInputBase-root": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputBase-root.Mui-disabled": {
+                                                backgroundColor: colors.primary[400], // Change the background color when disabled
+                                                color: colors.grey[100], // Optional: Change the text color when disabled
+                                            },
+                                            "& .MuiInputBase-root.Mui-hovered": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputBase-root.Mui-focused": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputLabel-root.Mui-focused": {
+                                                color: colors.primary[100],
+                                            },
+                                        }}
+                                    />
+                                    <TextField
+                                        fullWidth
+                                        variant="filled"
+                                        type="text"
+                                        label="Guardian’s Whatsapp 2"
+                                        onBlur={handleBlur}
+                                        onChange={handleChange}
+                                        value={values.gWhatsapp2}
+                                        name="gWhatsapp2"
+                                        sx={{
+                                            gridColumn: "span 2",
+                                            "@media (max-width: 1150px)": {
+                                                gridColumn: "span 4",// Reduce gap between elements on small screens
+                                            },
+                                            "& .MuiInputBase-root": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputBase-root.Mui-disabled": {
+                                                backgroundColor: colors.primary[400], // Change the background color when disabled
+                                                color: colors.grey[100], // Optional: Change the text color when disabled
+                                            },
+                                            "& .MuiInputBase-root.Mui-hovered": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputBase-root.Mui-focused": {
+                                                backgroundColor: colors.primary[400],
+                                            },
+                                            "& .MuiInputLabel-root.Mui-focused": {
+                                                color: colors.primary[100],
+                                            },
+                                        }}
+                                    />
+                                </Box>
+
+
+                                <Button
+                                    endIcon={<SaveIcon />}
+                                    variant="contained"
+                                    type="submit"
+                                    loading={isLoading}
+                                    sx={{
+                                        gridColumn: "span 4",
+                                        marginTop: "15px",
+                                        textTransform: "capitalize",
+                                        color: colors.grey[100],
+                                        fontSize: "17px",
+                                        fontWeight: "500",
+                                        paddingY: "10px",
+                                        backgroundColor: buttonText === "Enable" ? colors.greenAccent[700] : (isUpdate ? colors.primary[700] : colors.blueAccent[700]),
+                                        "&:hover": {
+                                            backgroundColor: buttonText === "Enable" ? colors.greenAccent[600] : (isUpdate ? colors.primary[600] : colors.blueAccent[600]),
+                                        },
+                                        width: "150px", // Fixed width for larger screens
+                                        justifySelf: "flex-end", // Right align the button
+                                        "@media (max-width: 767px)": {
+                                            width: "100%", // Full width for screens smaller than 767px
+                                            justifySelf: "stretch", // Ensure the button stretches to full width
+                                        },
+                                    }}
+                                >
+                                    {isUpdate ? "Update" : buttonText}
+                                </Button>
                             </Box>
-
-
-                            <Button
-                                endIcon={<SaveIcon />}
-                                variant="contained"
-                                type="submit"
-                                loading={isLoading}
-                                sx={{
-                                    gridColumn: "span 4",
-                                    marginTop: "15px",
-                                    textTransform: "capitalize",
-                                    color: colors.grey[100],
-                                    fontSize: "17px",
-                                    fontWeight: "500",
-                                    paddingY: "10px",
-                                    backgroundColor: buttonText === "Enable" ? colors.greenAccent[700] : (isUpdate ? colors.primary[700] : colors.blueAccent[700]),
-                                    "&:hover": {
-                                        backgroundColor: buttonText === "Enable" ? colors.greenAccent[600] : (isUpdate ? colors.primary[600] : colors.blueAccent[600]),
-                                    },
-                                    width: "150px", // Fixed width for larger screens
-                                    justifySelf: "flex-end", // Right align the button
-                                    "@media (max-width: 767px)": {
-                                        width: "100%", // Full width for screens smaller than 767px
-                                        justifySelf: "stretch", // Ensure the button stretches to full width
-                                    },
-                                }}
-                            >
-                                {isUpdate ? "Update" : buttonText}
-                            </Button>
-                        </Box>
-                    </form>
-                )}
+                        </form>
+                    )
+                }}
             </Formik>
         </Box>
     );
 };
 
-export default New_Customer;
+export default StudentPage;

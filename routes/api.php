@@ -41,6 +41,7 @@ Route::get('/classes', [ClassesController::class, 'getAllClasses']);
 Route::post('/gradesAndDays', [ClassesController::class, 'getGradesAndDays']);
 Route::post('/grades', [ClassesController::class, 'getGrades']);
 
+Route::post('/dashboard-stats', [StudentReportController::class, 'dashboardStats']);
 Route::post('/get-dashboard-data', [ClassesController::class, 'getDashboardData']);
 Route::get('/months', [MonthController::class, 'getMonths']);
 Route::get('/years', [YearController::class, 'getYears']);

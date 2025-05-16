@@ -180,7 +180,7 @@ class UserController extends Controller
             $updateData = [
                 'name' => $request->name,
                 'email' => $request->email,
-                'password' => $request->password,
+                // 'password' => $request->password,
                 'before_payment_week3' => $request->beforePaymentWeek3,
                 'before_payment_week4' => $request->beforePaymentWeek4,
                 'after_payment_template' => $request->afterPaymentTemplate,
