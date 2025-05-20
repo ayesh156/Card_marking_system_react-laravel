@@ -39,7 +39,7 @@ function App() {
     useEffect(() => {
         Cookies.set("classSelected", classSelected);
         Cookies.set("selectedClass", selectedClass);
-    }, [ classSelected, selectedClass]);
+    }, [classSelected, selectedClass]);
 
     const handleLogin = (email) => {
         Cookies.set("userEmail", email, { expires: 30 })
@@ -77,9 +77,9 @@ function App() {
                                         <Route path="/" element={<Dashboard />} />
 
                                         <Route path="/:gradePath" element={<GradePage />} />
-                                        
-                                        <Route  path={`/:gradePath/student`} element={<StudentPage />} />
 
+                                        <Route path={`/:gradePath/student`} element={<StudentPage />} />
+                                        <Route path={`/student`} element={<StudentPage />} />
 
                                         <Route path="/message" element={<Message />} />
                                         <Route path="/settings" element={<Settings />} />

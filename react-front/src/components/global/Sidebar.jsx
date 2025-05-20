@@ -18,7 +18,7 @@ import Cookies from "js-cookie";
 import axiosClient from "../../../axios-client.js";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
+import PersonAddAltIcon from '@mui/icons-material/PersonAddAlt'; // Add this import
 
 const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
     const theme = useTheme();
@@ -51,7 +51,7 @@ const Item = ({ title, to, icon, selected, setSelected, onClick }) => {
     );
 };
 
-const Sidebar = ({userEmail}) => {
+const Sidebar = ({ userEmail }) => {
     const theme = useTheme();
     const colors = tokens(theme.palette.mode);
     const navigate = useNavigate();
@@ -246,6 +246,15 @@ const Sidebar = ({userEmail}) => {
                             selected={selected}
                             setSelected={setSelected}
                         />
+                        {/* ...inside the return, after other menu items... */}
+                        <Item
+                            title="+ Student"
+                            to="/student"
+                            icon={<PersonAddAltIcon />}
+                            selected={selected}
+                            setSelected={setSelected}
+                            onClick={() => navigate("/student", { state: { status: "all" } })}
+                        />
 
                         {/* Dynamically Render Categories and Grades */}
                         {categoriesWithGrades.map((category, index) => (
@@ -284,9 +293,17 @@ const Sidebar = ({userEmail}) => {
                                                     .replace(/,\s/g, "-") // Replace ", " with "-"
                                                     .toLowerCase()}`; // Convert to lowercase
 
+                                            // Display logic: convert "grade1b" to "Grade 1 - B"
+                                            let displayGrade = grade;
+                                            const match = grade.match(/^grade\s*(\d+)[\s-]*([a-z])$/i);
+                                            if (match) {
+                                                displayGrade = `Grade ${match[1]} - ${match[2].toUpperCase()}`;
+                                            }
+
                                             return (
 
-                                                <MenuItem key={gradeIndex}
+                                                <MenuItem
+                                                    key={`${category.category_name}-${grade}-${gradeIndex}`}
                                                     active={selected === routeName} // Highlight the selected sub-item
                                                     style={{
                                                         color: selected === routeName ? "inherit" : colors.grey[100], // Purple for selected, default for others
@@ -304,9 +321,10 @@ const Sidebar = ({userEmail}) => {
                                                             />
                                                             <Typography color="inherit" variant="body2">
                                                                 {!isCollapsed ? (
-                                                                    grade
-                                                                ) : (grade.replace("Grade ", ""))}
-
+                                                                    displayGrade
+                                                                ) : (
+                                                                    displayGrade.replace("Grade ", "")
+                                                                )}
                                                             </Typography>
                                                         </Box>
                                                     </Link>

@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\MockObject\Builder\Stub;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 
 
 class StudentReportController extends Controller
@@ -219,6 +220,43 @@ class StudentReportController extends Controller
             return response()->json(['Student or WhatsApp number not found for student ID: ' . $studentId], 400);
         }
 
+        // --- NEW LOGIC: Get the student's grade ---
+        $grade = null;
+        $tuition = Tuition::with('grades')->find($tuitionId);
+
+        if ($tuition && $tuition->grades->count() > 0) {
+            $gradeRow = $tuition->grades->first();
+            $grade = $gradeRow->grade_name;
+        }
+
+        $templateColumn = null;
+
+        // Only use grade-specific templates for tuition IDs 1 and 20–30
+        if (in_array($tuitionId, array_merge([1], range(20, 31)))) {
+            if ($grade) {
+                $gradeLower = strtolower($grade);
+                if ($gradeLower === 'nursery') {
+                    $templateColumn = 'after_payment_nursery_template';
+                } elseif (preg_match('/^grade\s*([1-9]|1[0-1])([ -]?[a-zA-Z])?$/i', $gradeLower, $matches)) {
+                    // This will match "grade 1", "grade 1a", "grade 1 a", "grade 1-a", etc.
+                    $gradeNum = $matches[1];
+                    $templateColumn = 'after_payment_grade' . $gradeNum . '_template';
+                }
+            }
+        }
+
+        // Fetch the template from the user table
+        if ($templateColumn && Schema::hasColumn('users', $templateColumn)) {
+            $afterPaymentTemplate = User::where('email', $email)->value($templateColumn);
+        } else {
+            // For tuition IDs outside 1 and 20–30, or if no grade-specific template found, always use after_payment_template
+            $afterPaymentTemplate = User::where('email', $email)->value('after_payment_template');
+        }
+
+        if (!$afterPaymentTemplate) {
+            return response()->json(['After payment template not found for user email: $email'], 400);
+        }
+
         // Check if the tuition is for an English class by directly querying the class_id
         $isEnglishClass = Tuition::where('id', $tuitionId)
             ->where('class_id', function ($query) {
@@ -228,13 +266,6 @@ class StudentReportController extends Controller
                     ->limit(1);
             })
             ->exists();
-
-        // Retrieve the after_payment_template from the users table
-        $afterPaymentTemplate = User::where('email', $email)->value('after_payment_template');
-
-        if (!$afterPaymentTemplate) {
-            return response()->json(['After payment template not found for user email: $email'], 400);
-        }
 
         // Find the existing child report
         $childReport = StudentReport::where('student_id', $studentId)
@@ -542,8 +573,6 @@ class StudentReportController extends Controller
                     ->where('year_id', $yearId)
                     ->where('month_id', $monthId)
                     ->where('paid', false) // Only unpaid students
-                    ->where('week1', true) // Attended the first week
-                    ->where('week2', true) // Attended the second week
                     ->where('reminder_week3', false) // Reminder not sent yet
                     ->with('student') // Eager load the related student
                     ->get();
@@ -571,8 +600,6 @@ class StudentReportController extends Controller
                     ->where('year_id', $yearId)
                     ->where('month_id', $monthId)
                     ->where('paid', false) // Only unpaid students
-                    ->where('week1', true) // Attended the first week
-                    ->where('week2', true) // Attended the second week
                     ->where('reminder_week4', false) // Reminder not sent yet
                     ->with('student') // Eager load the related student
                     ->get();

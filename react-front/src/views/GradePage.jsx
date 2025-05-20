@@ -65,7 +65,9 @@ const GradePage = () => {
             if (grades.trim().charAt(0).toLowerCase() === "n") {
                 setGradeTitle(`Nursery ${categoryName}`);
             } else {
-                setGradeTitle(`Grade ${grades} ${categoryName}`);
+                // Format "1b" as "1 - B" (and also handle multiple grades like "1b, 2a")
+                const formattedGrades = grades.replace(/(\d+)\s*([a-zA-Z])/g, (m, num, letter) => `${num} - ${letter.toUpperCase()}`);
+                setGradeTitle(`Grade ${formattedGrades} ${categoryName}`);
             }
         } else {
             setGradeTitle("Unknown Category"); // Fallback for invalid routes
@@ -379,7 +381,9 @@ const GradePage = () => {
     const columns = [
         {
             field: "select",
-            headerName: (
+            headerName: "Select", // Use a string here
+            flex: 0.6,
+            renderHeader: (params) => (
                 <Checkbox
                     checked={selectedChildren.length === filteredChildren.length && filteredChildren.length > 0}
                     indeterminate={selectedChildren.length > 0 && selectedChildren.length < filteredChildren.length}
@@ -390,7 +394,6 @@ const GradePage = () => {
                     }}
                 />
             ),
-            flex: 0.6,
             renderCell: (params) => (
                 <Checkbox
                     checked={selectedChildren.includes(params.row.child_id)}

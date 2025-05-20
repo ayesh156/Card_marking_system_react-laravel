@@ -12,6 +12,7 @@ import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import StatsCard from "../components/StatsCard";
 import Cookies from "js-cookie";
+import { useMemo } from "react";
 import axiosClient from "../../axios-client";
 import { ToastContainer } from "react-toastify";
 import ToastNotification from "../components/ToastNotification.jsx";
@@ -82,7 +83,6 @@ const Settings = () => {
     const [initialFormValues, setInitialFormValues] = useState({
         name: "",
         email: "",
-        password: "",
         beforePaymentWeek3: "",
         beforePaymentWeek4: "",
         afterPaymentTemplate: "",
@@ -107,6 +107,8 @@ const Settings = () => {
     const [users, setUsers] = useState([]);
     const [totalActiveStudents, setTotalActiveStudents] = useState(0);
     const [totalPaidStudents, setTotalPaidStudents] = useState(0);
+    const [templateFields, setTemplateFields] = useState([]);
+    const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
 
     // Function to fetch day_id from backend
     const fetchGrades = async () => {
@@ -200,11 +202,16 @@ const Settings = () => {
                 setInitialFormValues({
                     name: user.name || "",
                     email: user.email || "",
-                    password: "",
                     beforePaymentWeek3: user.before_payment_week3 || "",
                     beforePaymentWeek4: user.before_payment_week4 || "",
                     afterPaymentTemplate: user.after_payment_template || "",
                 });
+                // Extract template fields
+                const templates = Object.keys(user)
+                    .filter(key => /^after_payment_(nursery|grade\d+)_template$/.test(key))
+                    .map(key => ({ key, value: user[key] || "" }));
+                setTemplateFields(templates);
+                if (templates.length > 0) setSelectedTemplateKey(templates[0].key);
                 if (user.image_path) {
                     setSelectedImage(`${API_BASE_URL}/storage/${user.image_path}`);
                 }
@@ -221,17 +228,23 @@ const Settings = () => {
 
         setIsLoading(true); // Set loading state to true
 
+        // Merge templateFields into the payload
+        const templatePayload = templateFields.reduce((acc, curr) => {
+            acc[curr.key] = curr.value;
+            return acc;
+        }, {});
+
         // Construct the payload as a plain object
         const payload = {
             name: values.name,
             email: values.email,
-            password: values.password, // Add password field
             beforePaymentWeek3: values.beforePaymentWeek3,
             beforePaymentWeek4: values.beforePaymentWeek4,
             afterPaymentTemplate: values.afterPaymentTemplate,
             status: true, // Default status
             mode: 'A', // Example mode
             image: selectedImage, // Include the image as a base64 string if needed
+            ...templatePayload,
         };
 
         // console.log(payload); 
@@ -684,6 +697,86 @@ const Settings = () => {
                                     },
                                 }}
                             />
+                            {selectedClass === "E" && (
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    gridColumn: "span 4",
+                                    justifyContent: "space-between",
+                                    gap: "20px", // Add spacing between the selects
+                                    "@media (max-width: 767px)": {
+                                        flexDirection: "column", // Stack selects on smaller screens
+                                        gap: 3,
+                                    },
+                                }}
+                            >
+                                <FormControl fullWidth variant="filled" sx={{
+                                        "& .MuiInputBase-root": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-disabled": {
+                                            backgroundColor: colors.primary[400], // Change the background color when disabled
+                                            color: colors.grey[100], // Optional: Change the text color when disabled
+                                        },
+                                        "& .MuiInputBase-root.Mui-hovered": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputBase-root.Mui-focused": {
+                                            backgroundColor: colors.primary[400],
+                                        },
+                                        "& .MuiInputLabel-root.Mui-focused": {
+                                            color: colors.primary[100],
+                                        },
+                                    }}>
+                                    <InputLabel id="template-select-label">After Payment Template (Nursery to Grade 11)</InputLabel>
+                                    <Select
+                                        labelId="template-select-label"
+                                        value={selectedTemplateKey}
+                                        onChange={e => setSelectedTemplateKey(e.target.value)}
+                                    >
+                                        {templateFields.map(f => (
+                                            <MenuItem key={f.key} value={f.key}>
+                                                {f.key.replace("after_payment_", "").replace("_template", "").replace(/grade/, "Grade ").replace(/nursery/, "Nursery")}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                {selectedTemplateKey && (
+                                    <TextField
+                                        fullWidth
+                                        variant="filled"
+                                        label="Template Value"
+                                        value={templateFields.find(f => f.key === selectedTemplateKey)?.value || ""}
+                                        onChange={e => {
+                                            setTemplateFields(fields =>
+                                                fields.map(f =>
+                                                    f.key === selectedTemplateKey ? { ...f, value: e.target.value } : f
+                                                )
+                                            );
+                                        }}
+                                        sx={{
+                                    gridColumn: "span 2",
+                                    "& .MuiInputBase-root": {
+                                        backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-disabled": {
+                                        backgroundColor: colors.primary[400], // Change the background color when disabled
+                                        color: colors.grey[100], // Optional: Change the text color when disabled
+                                    },
+                                    "& .MuiInputBase-root.Mui-hovered": {
+                                        backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputBase-root.Mui-focused": {
+                                        backgroundColor: colors.primary[400],
+                                    },
+                                    "& .MuiInputLabel-root.Mui-focused": {
+                                        color: colors.primary[100],
+                                    },
+                                }}
+                                    />
+                                )}
+                            </Box>
+                            )}
                             {/* Grade Dropdown */}
                             <Box
                                 sx={{

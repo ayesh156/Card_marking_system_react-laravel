@@ -42,7 +42,7 @@ class UserController extends Controller
                 'message' => 'Your account has been blocked. Please contact the administrator for assistance.',
             ], 403); // 403 Forbidden
         }
-        
+
         // Compare the plain-text password directly (not recommended)
         if ($request->password !== $user->password) {
             return response()->json(['message' => 'Invalid email or password'], 401);
@@ -138,6 +138,7 @@ class UserController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+
     public function update(UserRequest $request, string $email)
     {
         try {
@@ -150,29 +151,22 @@ class UserController extends Controller
             // Handle image upload (base64 string)
             $imagePath = $user->image_path;
             if ($request->has('image') && preg_match('/^data:image\/(\w+);base64,/', $request->image, $matches)) {
-                // Extract base64 data and extension
                 $imageData = substr($request->image, strpos($request->image, ',') + 1);
                 $imageData = base64_decode($imageData);
                 if ($imageData === false) {
                     return response()->json(['message' => 'Invalid base64 image data'], 400);
                 }
-                $extension = strtolower($matches[1]); // e.g., jpeg, png
+                $extension = strtolower($matches[1]);
                 if (!in_array($extension, ['jpeg', 'jpg', 'png'])) {
                     return response()->json(['message' => 'Unsupported image format'], 400);
                 }
-
-                // Generate a unique filename: username_XXXXXX.ext
                 $sanitizedName = preg_replace('/[^A-Za-z0-9_\-]/', '', strtolower($request->name));
                 $randomCode = mt_rand(100000, 999999);
                 $fileName = $sanitizedName . '_' . $randomCode . '.' . $extension;
                 $imagePath = 'uploads/users/' . $fileName;
-
-                // Delete old image if exists
                 if ($user->image_path && Storage::disk('public')->exists($user->image_path)) {
                     Storage::disk('public')->delete($user->image_path);
                 }
-
-                // Save the decoded image
                 Storage::disk('public')->put($imagePath, $imageData);
             }
 
@@ -180,18 +174,19 @@ class UserController extends Controller
             $updateData = [
                 'name' => $request->name,
                 'email' => $request->email,
-                // 'password' => $request->password,
                 'before_payment_week3' => $request->beforePaymentWeek3,
                 'before_payment_week4' => $request->beforePaymentWeek4,
                 'after_payment_template' => $request->afterPaymentTemplate,
                 'image_path' => $imagePath,
-                'status' => 1, // Hardcoded as per original logic
-                'mode' => 'D', // Hardcoded as per original logic
+                'status' => 1,
+                'mode' => 'D',
             ];
 
-            // Hash password if provided
-            if ($request->filled('password')) {
-                $updateData['password'] = Hash::make($request->password);
+            // Add all after_payment_*_template fields from the request
+            foreach ($request->all() as $key => $value) {
+                if (preg_match('/^after_payment_(nursery|grade\d+)_template$/', $key)) {
+                    $updateData[$key] = $value;
+                }
             }
 
             // Update user

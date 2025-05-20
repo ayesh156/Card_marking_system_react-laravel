@@ -113,9 +113,15 @@ const StudentPage = () => {
     const [pageTitle, setPageTitle] = useState("");
     const [buttonText, setButtonText] = useState("Save");
     const themeMode = theme.palette.mode === "dark" ? "dark" : "light";
+    const [autocompleteKey, setAutocompleteKey] = useState(0); // Add this line
 
     const childId = location.state?.child; // Get the child_id from the state
     const tuitionId = location.state?.tuitionId; // Get the child_id from the state
+
+    const status = location.state?.status;
+
+    // Add a state for suggested tuitionId
+    const [suggestedTuitionId, setSuggestedTuitionId] = useState("");
 
     // Determine if this is an update or a new customer
     const isUpdate = Boolean(childId);
@@ -173,7 +179,9 @@ const StudentPage = () => {
             if (grades.toLowerCase() === "n") {
                 setPageTitle(isUpdate ? `Update Nursery ${categoryName} Student` : `New Nursery ${categoryName} Student`);
             } else {
-                setPageTitle(isUpdate ? `Update Grade ${grades} ${categoryName} Student` : `New Grade ${grades} ${categoryName} Student`);
+                // Format "1b" as "1 - B" (and also handle multiple grades like "1b, 2a")
+                const formattedGrades = grades.replace(/(\d+)\s*([a-zA-Z])/g, (m, num, letter) => `${num} - ${letter.toUpperCase()}`);
+                setPageTitle(isUpdate ? `Update Grade ${formattedGrades} ${categoryName} Student` : `New Grade ${formattedGrades} ${categoryName} Student`);
             }
         } else {
             setPageTitle(isUpdate ? "Update Student" : "New Student"); // Fallback for invalid routes
@@ -236,7 +244,8 @@ const StudentPage = () => {
     }, [childId]);
 
 
-    const handleFormSubmit = async (values, { resetForm }) => {
+
+    const handleFormSubmit = async (values, { resetForm, setFieldValue }) => {
         setIsLoading(true);
 
         const payload = {
@@ -245,27 +254,23 @@ const StudentPage = () => {
             g_mobile: values.gMobile || "", // Map gMobile to g_mobile
             g_whatsapp: values.gWhatsapp || "", // Map gWhatsapp to g_whatsapp
             g_whatsapp2: values.gWhatsapp2 || "",
+            tuitionId: status === "all" ? suggestedTuitionId : tuitionId, // Use suggestedTuitionId if status is 'all'
         };
 
         try {
             if (isUpdate) {
-                // If updating, send a PUT request with the child ID and details
-                await axiosClient.put(`/student/${childId}`, {
-                    ...payload,
-                    tuitionId, // Include tuitionId in the request
-                }).then(({ data }) => {
+                await axiosClient.put(`/student/${childId}`, payload).then(({ data }) => {
                     ToastNotification(data.message, "success", themeMode);
                 });
             } else {
-                // If creating, send a POST request with the details and tuition ID
-                await axiosClient.post("/student", {
-                    ...payload,
-                    tuitionId, // Include tuitionId in the request
-                }).then(({ data }) => {
+                await axiosClient.post("/student", payload).then(({ data }) => {
                     ToastNotification(data.message, "success", themeMode);
                     resetForm();
+                    setSuggestions([]); // Clear autocomplete suggestions after save
+                    setInitialFormValues((prev) => ({ ...prev, name: "" })); // <-- Add this line
+                    setFieldValue("name", ""); // Explicitly clear Formik field
+                    setAutocompleteKey((k) => k + 1); // Force Autocomplete to re-mount and clear input
                 });
-
             }
         } catch (err) {
             const response = err.response;
@@ -315,14 +320,14 @@ const StudentPage = () => {
                     textTransform={"capitalize"}
                     color={colors.grey[100]}
                 >
-                    {pageTitle}
+                    {status === "all" ? "New Student" : pageTitle}
                 </Typography>
             </Button>
             <Formik
                 initialValues={initialFormValues}
                 enableReinitialize
                 validationSchema={customerSchema}
-                onSubmit={async (values, { resetForm }) => {
+                onSubmit={async (values, { resetForm, setFieldValue }) => {
                     if (buttonText === "Enable") {
                         // Handle enabling the student status
                         try {
@@ -338,7 +343,8 @@ const StudentPage = () => {
                         }
                     } else {
                         // Handle normal save logic
-                        await handleFormSubmit(values, { resetForm });
+                        await handleFormSubmit(values, { resetForm, setFieldValue });
+                        setFieldValue("name", ""); // Clear the Autocomplete value after save
                     }
                 }}
             >
@@ -348,6 +354,41 @@ const StudentPage = () => {
                             setButtonText("Save");
                         }
                     }, [values.name]);
+
+                    // Suggest tuitionId as user types S.No.
+                    useEffect(() => {
+                        if (status === "all" && values.sno) {
+                            const snoNum = parseInt(values.sno, 10);
+                            let tuitionId = "";
+                            let exceeded = false;
+
+                            if (!isNaN(snoNum) && snoNum >= 0) {
+                                if (snoNum <= 99) tuitionId = 1;
+                                else if (snoNum <= 149) tuitionId = 20;
+                                else if (snoNum <= 199) tuitionId = 31;
+                                else if (snoNum <= 299) tuitionId = 21;
+                                else if (snoNum <= 399) tuitionId = 22;
+                                else if (snoNum <= 499) tuitionId = 23;
+                                else if (snoNum <= 599) tuitionId = 24;
+                                else if (snoNum <= 699) tuitionId = 25;
+                                else if (snoNum <= 799) tuitionId = 26;
+                                else if (snoNum <= 899) tuitionId = 27;
+                                else if (snoNum <= 999) tuitionId = 28;
+                                else if (snoNum <= 1099) tuitionId = 29;
+                                else if (snoNum <= 1199) tuitionId = 30;
+                                else exceeded = true;
+                            }
+
+                            if (exceeded) {
+                                setSuggestedTuitionId("");
+                                ToastNotification("S.No. range exceeded. Please enter a value between 0 and 1199.", "error", themeMode);
+                            } else {
+                                setSuggestedTuitionId(tuitionId);
+                            }
+                        } else {
+                            setSuggestedTuitionId("");
+                        }
+                    }, [values.sno, status]);
 
                     return (
                         <form onSubmit={handleSubmit}>
@@ -394,7 +435,6 @@ const StudentPage = () => {
                                     }}
                                 />
 
-
                                 {isUpdate ? (<TextField
                                     fullWidth
                                     variant="filled"
@@ -427,6 +467,7 @@ const StudentPage = () => {
                                     }}
                                 />) : (
                                     <Autocomplete
+                                        key={autocompleteKey} // <-- Add this line
                                         fullWidth
                                         freeSolo
                                         options={suggestions}
@@ -451,14 +492,11 @@ const StudentPage = () => {
                                                 setButtonText("Enable");
                                             }
                                         }}
-                                        renderOption={(props, option) => {
-                                            const { key, ...rest } = props; // Extract the key from props
-                                            return (
-                                                <li key={key} {...rest}>
-                                                    {option.name} (S.No: {option.sno})
-                                                </li>
-                                            );
-                                        }}
+                                        renderOption={(props, option) => (
+                                            <li key={option.sno} {...props}>
+                                                {option.name} (S.No: {option.sno})
+                                            </li>
+                                        )}
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params}
@@ -843,6 +881,7 @@ const StudentPage = () => {
                                     variant="contained"
                                     type="submit"
                                     loading={isLoading}
+                                    disabled={buttonText === "Enable" && status === "all"} // <-- Disable Enable button if status is all
                                     sx={{
                                         gridColumn: "span 4",
                                         marginTop: "15px",
