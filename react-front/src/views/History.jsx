@@ -60,7 +60,7 @@ function FacebookCircularProgress(props) {
     );
 }
 
-const GradePage = () => {
+const History = () => {
     const [children, setChildren] = useState([]); // List of children
     const [filteredChildren, setFilteredChildren] = useState([]); // Filtered list for search
     const [searchQuery, setSearchQuery] = useState("");
@@ -425,8 +425,7 @@ const GradePage = () => {
                         paddingTop: "4px",
                         textAlign: "center",
                         height: "100%",
-                        color: params.row.special
-                            ? "#F1C40F" : colors.grey[100]
+                        color: colors.grey[100]
                     }}
                 >
                     {params.value}
@@ -831,4 +830,4 @@ const GradePage = () => {
     );
 };
 
-export default GradePage;
+export default History;

@@ -78,6 +78,14 @@ const Dashboard = () => {
 
     }, []);
 
+    const formatGrade = (grade) => {
+        // Matches "Grade 1a" or "Grade 10b" etc. and converts to "Grade 1 - A"
+        return grade.replace(/^Grade\s*(\d{1,2})([a-zA-Z])$/i, (match, num, letter) => {
+            return `Grade ${num} - ${letter.toUpperCase()}`;
+        });
+    };
+
+
 
     return (
         <Box m="20px">
@@ -113,7 +121,7 @@ const Dashboard = () => {
                 >
                     {currentDate}
                 </Typography>
-            </Box>            
+            </Box>
             <Box
                 sx={{
                     display: 'flex',
@@ -133,7 +141,7 @@ const Dashboard = () => {
                     >
                         <StatsCard
                             title={item.category}
-                            value={`${item.grade}`}
+                            value={formatGrade(item.grade)}
                             subtext={`Students: ${item.student_count}`}
                             icon={<SchoolIcon />}
                             color={colors.greenAccent[400]}

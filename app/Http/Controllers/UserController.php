@@ -177,6 +177,7 @@ class UserController extends Controller
                 'before_payment_week3' => $request->beforePaymentWeek3,
                 'before_payment_week4' => $request->beforePaymentWeek4,
                 'after_payment_template' => $request->afterPaymentTemplate,
+                'after_payment_spoken_template' => $request->afterSpokenPaymentTemplate,
                 'image_path' => $imagePath,
                 'status' => 1,
                 'mode' => 'D',

@@ -34,6 +34,7 @@ class UserRequest extends FormRequest
             'after_payment_grade9_template' => 'nullable|string|max:100',
             'after_payment_grade10_template' => 'nullable|string|max:100',
             'after_payment_grade11_template' => 'nullable|string|max:100',
+            'after_payment_spoken_template' => 'nullable|string|max:100',
             'status' => 'nullable',
             'mode' => 'nullable|string|max:1',
             'image' => 'nullable',

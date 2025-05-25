@@ -222,7 +222,12 @@ class StudentReportController extends Controller
 
         // --- NEW LOGIC: Get the student's grade ---
         $grade = null;
-        $tuition = Tuition::with('grades')->find($tuitionId);
+        $tuition = Tuition::with(['grades', 'category'])->find($tuitionId);
+
+        $categoryName = null;
+        if ($tuition && $tuition->category) {
+            $categoryName = strtolower($tuition->category->category_name);
+        }
 
         if ($tuition && $tuition->grades->count() > 0) {
             $gradeRow = $tuition->grades->first();
@@ -231,18 +236,19 @@ class StudentReportController extends Controller
 
         $templateColumn = null;
 
-        // Only use grade-specific templates for tuition IDs 1 and 20–30
-        if (in_array($tuitionId, array_merge([1], range(20, 31)))) {
+        // Adjusted logic for Theory and Spoken categories
+        if ($categoryName === 'theory' && in_array($tuitionId, array_merge([1], range(20, 31)))) {
             if ($grade) {
                 $gradeLower = strtolower($grade);
                 if ($gradeLower === 'nursery') {
                     $templateColumn = 'after_payment_nursery_template';
                 } elseif (preg_match('/^grade\s*([1-9]|1[0-1])([ -]?[a-zA-Z])?$/i', $gradeLower, $matches)) {
-                    // This will match "grade 1", "grade 1a", "grade 1 a", "grade 1-a", etc.
                     $gradeNum = $matches[1];
                     $templateColumn = 'after_payment_grade' . $gradeNum . '_template';
                 }
             }
+        } elseif ($categoryName === 'spoken') { // <-- Adjust this range as needed
+            $templateColumn = 'after_payment_spoken_template';
         }
 
         // Fetch the template from the user table
@@ -521,7 +527,7 @@ class StudentReportController extends Controller
         }
 
         // Assign a custom date for testing purposes
-        // $customDate = '2025-05-14'; // Replace this with your desired date
+        // $customDate = '2025-05-18'; // Replace this with your desired date
         // $now = Carbon::parse($customDate); // Parse the custom date
         // $today = $now->startOfDay(); // Use this for today's date
 
@@ -551,80 +557,108 @@ class StudentReportController extends Controller
         // Get all tuitions for English classes
         $tuitions = Tuition::where('class_id', $englishClassId)->get();
 
-        // Array to store IDs of students who received messages
-        $messagedStudentIds = [];
-        $uniqueWhatsAppNumbers = collect(); // To store unique WhatsApp numbers
 
-        // Process reminders for each tuition
+        // --- INSERT student_reports for all active students on the 1st day of the month ---
         foreach ($tuitions as $tuition) {
-            $dayId = $tuition->day_id; // Retrieve the 'day_id' from the 'tuitions' table
+            $activeStudentIds = StudentTuition::where('tuition_id', $tuition->id)
+                ->where('status', 1)
+                ->pluck('student_id');
 
-            // Calculate the date for the 3rd and 4th weeks
-            $thirdWeekDate = $now->copy()->startOfMonth()->addWeeks(2)->startOfWeek(Carbon::SUNDAY)->addDays($dayId);
-            $fourthWeekDate = $now->copy()->startOfMonth()->addWeeks(3)->startOfWeek(Carbon::SUNDAY)->addDays($dayId);
-
-            // Calculate the day before the designated day of the 3rd and 4th weeks
-            $dayBeforeThirdWeek = $thirdWeekDate->copy()->subDay(); // Subtract 1 day
-            $dayBeforeFourthWeek = $fourthWeekDate->copy()->subDay(); // Subtract 1 day
-
-            // Check if today is the day before the designated day of the 3rd week
-            if ($today->equalTo($dayBeforeThirdWeek)) {
-                $studentsToRemind = StudentReport::where('tuition_id', $tuition->id)
+            foreach ($activeStudentIds as $studentId) {
+                $reportExists = StudentReport::where('student_id', $studentId)
+                    ->where('tuition_id', $tuition->id)
                     ->where('year_id', $yearId)
                     ->where('month_id', $monthId)
-                    ->where('paid', false) // Only unpaid students
-                    ->where('reminder_week3', false) // Reminder not sent yet
-                    ->with('student') // Eager load the related student
-                    ->get();
+                    ->exists();
 
-                foreach ($studentsToRemind as $studentReport) {
-                    $student = $studentReport->student;
-
-                    if ($student) {
-                        if ($student->g_whatsapp) $uniqueWhatsAppNumbers->push($student->g_whatsapp);
-                        if ($student->g_whatsapp2) $uniqueWhatsAppNumbers->push($student->g_whatsapp2);
-
-                        // Add the WhatsApp number to the unique collection
-                        $uniqueWhatsAppNumbers->push($student->g_whatsapp);
-
-                        // Mark the reminder as sent
-                        $studentReport->reminder_week3 = true;
-                        $studentReport->save();
-                    }
-                }
-            }
-
-            // Check if today is the day before the designated day of the 4th week
-            if ($today->equalTo($dayBeforeFourthWeek)) {
-                $studentsToRemind = StudentReport::where('tuition_id', $tuition->id)
-                    ->where('year_id', $yearId)
-                    ->where('month_id', $monthId)
-                    ->where('paid', false) // Only unpaid students
-                    ->where('reminder_week4', false) // Reminder not sent yet
-                    ->with('student') // Eager load the related student
-                    ->get();
-
-                foreach ($studentsToRemind as $studentReport) {
-                    $student = $studentReport->student;
-
-                    if ($student) {
-                        if ($student->g_whatsapp) $uniqueWhatsAppNumbers->push($student->g_whatsapp);
-                        if ($student->g_whatsapp2) $uniqueWhatsAppNumbers->push($student->g_whatsapp2);
-
-                        // Mark the reminder as sent
-                        $studentReport->reminder_week4 = true;
-                        $studentReport->save();
-                    }
+                if (!$reportExists) {
+                    StudentReport::create([
+                        'student_id' => $studentId,
+                        'tuition_id' => $tuition->id,
+                        'year_id' => $yearId,
+                        'month_id' => $monthId,
+                        'paid' => false,
+                        'week1' => false,
+                        'week2' => false,
+                        'week3' => false,
+                        'week4' => false,
+                        'week5' => false,
+                        'reminder_week3' => false,
+                        'reminder_week4' => false,
+                    ]);
                 }
             }
         }
 
-        // Filter unique WhatsApp numbers
-        $uniqueWhatsAppNumbers = $uniqueWhatsAppNumbers->unique();
+        // -------------------------------------------------------------------------------
 
-        // Send messages to unique WhatsApp numbers
-        foreach ($uniqueWhatsAppNumbers as $whatsappNumber) {
-            $this->sendWhatsAppReminder($whatsappNumber, $beforePaymentWeek3); // Use Week 3 template as an example
+
+        // Array to store IDs of students who received messages
+        $messagedStudentIds = [];
+        // $uniqueWhatsAppNumbers = collect(); // To store unique WhatsApp numbers
+
+        // Process reminders for each tuition
+        foreach ($tuitions as $tuition) {
+            $dayId = $tuition->day_id; // 0=Sunday, 1=Monday, etc.
+
+            // Find all class days for this tuition in the current month
+            $classDays = [];
+            $daysInMonth = $now->daysInMonth;
+            for ($d = 1; $d <= $daysInMonth; $d++) {
+                $date = Carbon::create($now->year, $now->month, $d);
+                if ($date->dayOfWeek == $dayId) {
+                    $classDays[] = $date;
+                }
+            }
+
+            // For each class day, check if today is the day before
+            foreach ($classDays as $index => $classDay) {
+                $weekNumber = $index + 1; // Week 1-based (first occurrence is week 1)
+                $dayBefore = $classDay->copy()->subDay();
+
+                if ($today->equalTo($dayBefore)) {
+                    $reminderField = null;
+                    $template = null;
+                    if ($weekNumber == 3) {
+                        $reminderField = 'reminder_week3';
+                        $template = $beforePaymentWeek3;
+                    } elseif ($weekNumber == 4) {
+                        $reminderField = 'reminder_week4';
+                        $template = $beforePaymentWeek4;
+                    }
+
+                    if ($reminderField && $template) {
+                        $studentsToRemind = StudentReport::where('tuition_id', $tuition->id)
+                            ->where('year_id', $yearId)
+                            ->where('month_id', $monthId)
+                            ->where('paid', false)
+                            ->where($reminderField, false)
+                            ->with('student')
+                            ->get();
+
+                        $numbersToMessage = collect();
+
+                        foreach ($studentsToRemind as $studentReport) {
+                            $student = $studentReport->student;
+                            if ($student) {
+                                if ($student->g_whatsapp) $numbersToMessage->push($student->g_whatsapp);
+                                if ($student->g_whatsapp2) $numbersToMessage->push($student->g_whatsapp2);
+
+                                // Mark the reminder as sent
+                                $studentReport->$reminderField = true;
+                                $studentReport->save();
+
+                                $messagedStudentIds[] = $student->id;
+                            }
+                        }
+
+                        // Send the template to unique numbers only
+                        foreach ($numbersToMessage->unique() as $whatsappNumber) {
+                            $this->sendWhatsAppReminder($whatsappNumber, $template);
+                        }
+                    }
+                }
+            }
         }
 
         // Return the response with the list of messaged student IDs

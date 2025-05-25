@@ -35,6 +35,7 @@ class User extends Authenticatable implements JWTSubject
         'after_payment_grade9_template',
         'after_payment_grade10_template',
         'after_payment_grade11_template',
+        'after_payment_spoken_template',
         'image_path',
         'status',
         'mode',

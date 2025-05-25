@@ -446,8 +446,7 @@ const GradePage = () => {
                         paddingTop: "4px",
                         textAlign: "center",
                         height: "100%",
-                        color: params.row.special
-                            ? "#F1C40F" : colors.grey[100]
+                        color: colors.grey[100]
                     }}
                 >
                     {params.value}
